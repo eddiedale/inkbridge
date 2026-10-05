@@ -1,0 +1,115 @@
+
+=== uname
+Linux imx93-tatsu 6.12.49+git-imx93-tatsu-g2418a6dae57b #1 SMP PREEMPT Thu Aug  6 08:02:33 UTC 2026 aarch64 GNU/Linux
+aarch64
+
+=== os-release
+ID=codex
+NAME="Codex Linux"
+VERSION="5.8.203 (scarthgap)"
+VERSION_ID=5.8.203
+VERSION_CODENAME="scarthgap"
+PRETTY_NAME="Codex Linux 5.8.203 (scarthgap)"
+CPE_NAME="cpe:/o:openembedded:codex:5.8.203"
+BUILD_MODE_RM="public"
+IMG_VERSION="3.28.0.172"
+
+=== devices
+I: Bus=0019 Vendor=0000 Product=0000 Version=0000
+N: Name="44440000.bbnsm:pwrkey"
+P: Phys=bbnsm-pwrkey/input0
+S: Sysfs=/devices/platform/soc@0/44000000.bus/44440000.bbnsm/44440000.bbnsm:pwrkey/input/input0
+U: Uniq=
+H: Handlers=kbd event0 
+B: PROP=0
+B: EV=3
+B: KEY=10000000000000 0
+
+I: Bus=0019 Vendor=0001 Product=0001 Version=0100
+N: Name="Hall effect sensors"
+P: Phys=gpio-keys/input0
+S: Sysfs=/devices/platform/gpio-hall-sensors/input/input1
+U: Uniq=
+H: Handlers=event1 
+B: PROP=0
+B: EV=21
+B: SW=8001
+
+I: Bus=001c Vendor=0000 Product=0000 Version=0000
+N: Name="Elan marker input"
+P: Phys=
+S: Sysfs=/devices/platform/soc@0/44000000.bus/44360000.spi/spi_master/spi0/spi0.0/input/input2
+U: Uniq=
+H: Handlers=event2 
+B: PROP=0
+B: EV=b
+B: KEY=1c03 0 0 0 0 0
+B: ABS=f000003
+
+I: Bus=001c Vendor=0000 Product=0000 Version=0000
+N: Name="Elan touch input"
+P: Phys=
+S: Sysfs=/devices/platform/soc@0/44000000.bus/44360000.spi/spi_master/spi0/spi0.0/input/input3
+U: Uniq=
+H: Handlers=event3 
+B: PROP=2
+B: EV=b
+B: KEY=400 0 0 0 0 0
+B: ABS=ee1800000000000
+
+
+=== evtest
+/usr/bin/evtest
+
+=== abs-bitmaps
+/sys/class/input/event0: 44440000.bbnsm:pwrkey abs=0
+/sys/class/input/event1: Hall effect sensors abs=0
+/sys/class/input/event2: Elan marker input abs=f000003
+/sys/class/input/event3: Elan touch input abs=ee1800000000000
+
+=== framebuffer
+card0
+card0-DPI-1
+version
+/sys/class/drm/card0-DPI-1/modes: 260x1408
+Input driver version is 1.0.1
+Input device ID: bus 0x1c vendor 0x0 product 0x0 version 0x0
+Input device name: "Elan marker input"
+Supported events:
+  Event type 0 (EV_SYN)
+  Event type 1 (EV_KEY)
+    Event code 320 (BTN_TOOL_PEN)
+    Event code 321 (BTN_TOOL_RUBBER)
+    Event code 330 (BTN_TOUCH)
+    Event code 331 (BTN_STYLUS)
+    Event code 332 (BTN_STYLUS2)
+  Event type 3 (EV_ABS)
+    Event code 0 (ABS_X)
+      Value   3427
+      Min        0
+      Max     9620
+      Resolution    2400
+    Event code 1 (ABS_Y)
+      Value   6985
+      Min        0
+      Max    13000
+      Resolution    1776
+    Event code 24 (ABS_PRESSURE)
+      Value      0
+      Min        0
+      Max     4096
+    Event code 25 (ABS_DISTANCE)
+      Value  10778
+      Min        0
+      Max    65535
+    Event code 26 (ABS_TILT_X)
+      Value   4400
+      Min    -9000
+      Max     9000
+    Event code 27 (ABS_TILT_Y)
+      Value   2300
+      Min    -9000
+      Max     9000
+Properties:
+Testing ... (interrupt to exit)
+Shared connection to 10.11.99.1 closed.
