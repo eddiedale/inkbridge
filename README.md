@@ -66,7 +66,7 @@ inkbridge   ● connected   USB 10.11.99.1
 
   ← → pressure curve  1.5 firm   ▁▁▂▂▂▃▃▃▄▄▅▆▆▇▇█
   ↓ ↑ min pressure    3%  less does not draw
-  [ ] max pressure    80%  more is full pressure
+  ⇧↓↑ max pressure    80%  more is full pressure
   s   smoothing       on
   r   rotation        90°  landscape, top edge right
   a   area map        fill screen

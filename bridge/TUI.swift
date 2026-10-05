@@ -35,30 +35,51 @@ func step(_ value: Double, _ delta: Double) -> Double {
     ((value + delta) * 100).rounded() / 100
 }
 
+enum Key { case char(UInt8), up, down, left, right, shiftUp, shiftDown }
+
+/// Splits raw terminal input into keys. Arrows arrive as ESC [ A..D, and with
+/// Shift as ESC [ 1 ; 2 A..D.
+func keys(in bytes: [UInt8]) -> [Key] {
+    var result: [Key] = []
+    var i = 0
+    while i < bytes.count {
+        guard bytes[i] == 0x1B, i + 2 < bytes.count, bytes[i + 1] == UInt8(ascii: "[") else {
+            result.append(.char(bytes[i]))
+            i += 1
+            continue
+        }
+        // Skip parameters up to the final letter.
+        var j = i + 2
+        while j < bytes.count, !(0x40...0x7E).contains(bytes[j]) { j += 1 }
+        guard j < bytes.count else { break }
+        let shift = bytes[(i + 2)..<j].elementsEqual(Array("1;2".utf8))
+        switch bytes[j] {
+        case UInt8(ascii: "A"): result.append(shift ? .shiftUp : .up)
+        case UInt8(ascii: "B"): result.append(shift ? .shiftDown : .down)
+        case UInt8(ascii: "C"): result.append(.right)
+        case UInt8(ascii: "D"): result.append(.left)
+        default: break
+        }
+        i = j + 1
+    }
+    return result
+}
+
 /// Applies key presses. Returns false when the user asked to quit.
 func handleKeys(_ bytes: [UInt8]) -> Bool {
-    var i = 0
     var changed = false
-    while i < bytes.count {
-        var key = bytes[i]
-        // Arrow keys arrive as ESC [ A..D; map them to u/d/r/l.
-        if key == 0x1B, i + 2 < bytes.count, bytes[i + 1] == UInt8(ascii: "[") {
-            key = [UInt8(ascii: "A"): UInt8(ascii: "U"), UInt8(ascii: "B"): UInt8(ascii: "D"),
-                   UInt8(ascii: "C"): UInt8(ascii: "R"), UInt8(ascii: "D"): UInt8(ascii: "L")][bytes[i + 2]] ?? 0
-            i += 2
-        }
-        i += 1
+    for key in keys(in: bytes) {
         switch key {
-        case UInt8(ascii: "q"), 3: return false   // 3 = Ctrl-C
-        case UInt8(ascii: "R"): settings.curve = min(3, ((settings.curve + 0.1) * 10).rounded() / 10)
-        case UInt8(ascii: "L"): settings.curve = max(0.3, ((settings.curve - 0.1) * 10).rounded() / 10)
-        case UInt8(ascii: "U"): settings.minPressure = min(settings.maxPressure - 0.1, step(settings.minPressure, 0.01))
-        case UInt8(ascii: "D"): settings.minPressure = max(0, step(settings.minPressure, -0.01))
-        case UInt8(ascii: "]"): settings.maxPressure = min(1, step(settings.maxPressure, 0.05))
-        case UInt8(ascii: "["): settings.maxPressure = max(settings.minPressure + 0.1, step(settings.maxPressure, -0.05))
-        case UInt8(ascii: "s"): settings.smoothing.toggle()
-        case UInt8(ascii: "r"): settings.rotation = (settings.rotation + 90) % 360
-        case UInt8(ascii: "a"): settings.keepAspect.toggle()
+        case .char(UInt8(ascii: "q")), .char(3): return false   // 3 = Ctrl-C
+        case .right: settings.curve = min(3, ((settings.curve + 0.1) * 10).rounded() / 10)
+        case .left: settings.curve = max(0.3, ((settings.curve - 0.1) * 10).rounded() / 10)
+        case .up: settings.minPressure = min(settings.maxPressure - 0.1, step(settings.minPressure, 0.01))
+        case .down: settings.minPressure = max(0, step(settings.minPressure, -0.01))
+        case .shiftUp: settings.maxPressure = min(1, step(settings.maxPressure, 0.05))
+        case .shiftDown: settings.maxPressure = max(settings.minPressure + 0.1, step(settings.maxPressure, -0.05))
+        case .char(UInt8(ascii: "s")): settings.smoothing.toggle()
+        case .char(UInt8(ascii: "r")): settings.rotation = (settings.rotation + 90) % 360
+        case .char(UInt8(ascii: "a")): settings.keepAspect.toggle()
         default: continue
         }
         changed = true
@@ -104,7 +125,7 @@ func render() {
         "",
         "  \(bold)← →\(reset) pressure curve  \(String(format: "%.1f", settings.curve)) \(feel)   \(dim)\(curveGraph)\(reset)",
         "  \(bold)↓ ↑\(reset) min pressure    \(Int((settings.minPressure * 100).rounded()))%  \(dim)less does not draw\(reset)",
-        "  \(bold)[ ]\(reset) max pressure    \(Int((settings.maxPressure * 100).rounded()))%  \(dim)more is full pressure\(reset)",
+        "  \(bold)⇧↓↑\(reset) max pressure    \(Int((settings.maxPressure * 100).rounded()))%  \(dim)more is full pressure\(reset)",
         "  \(bold)s\(reset)   smoothing       \(settings.smoothing ? "on" : "off")",
         "  \(bold)r\(reset)   rotation        \(settings.rotation)°  \(dim)\(rotationText)\(reset)",
         "  \(bold)a\(reset)   area map        \(settings.keepAspect ? "keep proportions" : "fill screen")",
