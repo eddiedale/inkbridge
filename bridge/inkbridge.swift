@@ -295,7 +295,7 @@ let skipKeyFile = "\(configDir)/no-ssh-key"    // user declined key setup
 
 // The shared control socket means the password is asked once per 10 minutes.
 var sshOptions = ["-o", "ConnectTimeout=5", "-o", "ControlMaster=auto",
-                  "-o", "ControlPath=~/.ssh/rm.sock", "-o", "ControlPersist=10m"]
+                  "-o", "ControlPath=~/.ssh/inkbridge-%C", "-o", "ControlPersist=10m"]
 if let key = try? String(contentsOfFile: keyChoiceFile, encoding: .utf8)
     .trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty {
     sshOptions += ["-i", key]

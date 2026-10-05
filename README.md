@@ -30,7 +30,8 @@ Known limits:
 - A reMarkable in **developer mode**, which gives root SSH access.
   **Turning on developer mode factory resets the tablet.** Sync or export
   your notebooks first.
-- A USB cable (Wi-Fi is untested)
+- A USB cable. Wi-Fi works (`rm-ssh-over-wlan on` on the tablet, then
+  `--host <tablet-ip>`) but showed periodic lag spikes in testing.
 
 ## Setup
 
