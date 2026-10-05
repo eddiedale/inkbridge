@@ -53,16 +53,33 @@ Known limits:
 build/inkbridge
 ```
 
-Enter the tablet password when asked; the connection is reused for 10
-minutes, so restarts in between do not ask again. To skip the password
-entirely, add your SSH key to the tablet once with
-`ssh-copy-id root@10.11.99.1` (a reMarkable software update may remove it;
-just run it again).
-
 Hold the tablet in landscape with its top edge on the right. Ctrl-C to stop.
 
 In Photoshop, set Brush Settings > Shape Dynamics > Size Jitter Control to
 Pen Pressure to see pressure.
+
+### Password and SSH key
+
+On the first run, inkbridge offers to set up an SSH key so you never need the
+tablet password again:
+
+```
+Set up an SSH key so you won't need the tablet password?
+  1) use ~/.ssh/id_ed25519.pub
+  n) create a new key just for the tablet (~/.ssh/id_ed25519_inkbridge)
+  s) skip, and don't ask again
+```
+
+Pick one of your existing keys or `n` for a dedicated key (recommended), then
+enter the password once to install it. The choice is saved in
+`~/.config/inkbridge/`, and keys on the tablet survive reMarkable software
+updates. Delete that folder to be asked again.
+
+Without a key, inkbridge asks for the password and keeps the connection open
+for 10 minutes, so restarts in between do not ask again.
+
+### Options
+
 
 | option | default | |
 |---|---|---|
