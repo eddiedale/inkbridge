@@ -43,8 +43,9 @@ Known limits:
    ```
    swiftc -O bridge/inkbridge.swift -o build/inkbridge
    ```
-4. Give your terminal app Accessibility permission (System Settings >
-   Privacy & Security > Accessibility), so it can post pen events.
+4. Allow your terminal app to control the computer, so it can post pen
+   events: System Settings > Privacy & Security > Device control and data
+   access (called Accessibility on older macOS versions).
 
 ## Usage
 
