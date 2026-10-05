@@ -42,7 +42,7 @@ Known limits:
    which inkbridge uses by default.
 3. Build:
    ```
-   swiftc -O bridge/inkbridge.swift -o build/inkbridge
+   swiftc -O bridge/*.swift -o build/inkbridge
    ```
 4. Allow your terminal app to control the computer, so it can post pen
    events: System Settings > Privacy & Security > Device control and data
@@ -54,7 +54,37 @@ Known limits:
 build/inkbridge
 ```
 
-Hold the tablet in landscape with its top edge on the right. Ctrl-C to stop.
+Hold the tablet in landscape with its top edge on the right. A live panel
+shows the pen state and pressure, and lets you tune settings while drawing:
+
+```
+inkbridge   ● connected   USB 10.11.99.1
+
+  pen          drawing
+  pressure     ██████████░░░░░░░░░░░░░░░░░░░░░░ 0.33
+  raw          ████████████████░░░░░░░░░░░░░░░░ 0.51
+
+  ← → pressure curve  1.5 firm   ▁▁▂▂▂▃▃▃▄▄▅▆▆▇▇█
+  ↓ ↑ min pressure    3%  less does not draw
+  [ ] max pressure    80%  more is full pressure
+  s   smoothing       on
+  r   rotation        90°  landscape, top edge right
+  a   area map        fill screen
+
+  498 reports/s   lag p50 0.3 ms   p95 0.6 ms
+  q quit   settings are saved automatically
+```
+
+- **pressure curve**: below 1 is soft (light strokes get heavier), above 1
+  is firm. Default 1.5.
+- **min pressure**: how much pressure starts a stroke, so a resting pen
+  leaves no ink. Default 3%.
+- **max pressure**: how hard you need to press for full output, so you reach
+  the thickest stroke without pushing the pen to its limit. Default 80%.
+- **smoothing**: the pen reports pressure only ~38 times a second; smoothing
+  removes the steps this would leave in tapered strokes.
+
+Settings are saved to `~/.config/inkbridge/settings.json`. Press `q` to quit.
 
 In Photoshop, set Brush Settings > Shape Dynamics > Size Jitter Control to
 Pen Pressure to see pressure.
@@ -90,7 +120,8 @@ for 10 minutes, so restarts in between do not ask again.
 | `--device` | `event2` | pen input device on the tablet |
 | `--touch-device` | `event3` | touch input device, grabbed so gestures are ignored |
 | `--no-grab` | off | leave pen and touch working on the tablet as well |
-| `--stats` | off | print report rate and link lag once a second |
+| `--plain` | off | print lines instead of the live panel |
+| `--stats` | off | in plain mode, print report rate and link lag once a second |
 | `--rate N` | `0` | cap motion events per second (0 = every report) |
 | `--debug` | off | print every pen report |
 
@@ -103,7 +134,7 @@ ssh root@10.11.99.1 cat /proc/bus/input/devices
 ```
 
 and pass them with `--device` and `--touch-device`. The axis ranges in
-`bridge/inkbridge.swift` are the Pure's; `tools/recon.sh` collects them for
+`bridge/Pen.swift` are the Pure's; `tools/recon.sh` collects them for
 another model. Reports from other devices are welcome.
 
 ## How it works

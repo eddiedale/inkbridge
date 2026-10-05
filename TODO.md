@@ -12,10 +12,8 @@ already works.
   the Pure's pen actually sends.
 - [ ] **Auto reconnect.** Restart the SSH stream when it drops (cable pulled,
   tablet sleeps) instead of exiting; release any held button first.
-- [ ] **Pressure curve.** Configurable gamma or control points, plus an
-  activation threshold. Pressure only updates at ~38 Hz while position runs at
-  ~580 Hz; consider interpolating between pressure updates to avoid stepped
-  strokes.
+- [x] **Pressure curve.** Curve, activation threshold and smoothing of the
+  ~38 Hz pressure updates, tunable live in the TUI.
 - [ ] **Prediction (experiment).** The pen firmware batches positions on a
   ~16 ms cycle and filters them, which shows as hover lag (drawing feels fine).
   Try extrapolating `--predict 0..20` ms from recent velocity, hover only at
@@ -50,13 +48,5 @@ already works.
   product: the native binary still has to be started from a terminal and
   granted permission, and a browser alone cannot do the job (no SSH, and
   pages cannot post system-wide pen events).
-- **Interactive TUI.** Instead of streaming silently, show a small live
-  panel in the terminal: connection state, report rate, a pressure meter, and
-  settings changed with single keys in real time (rotation, fill, pressure
-  curve and threshold, later prediction). Plain ANSI escapes, no
-  dependencies. Considerations:
-  - Switch the terminal to raw mode only after SSH has asked for the
-    password, and restore it on exit, crash or Ctrl-C.
-  - Save tweaked settings to a small config file so they stick between runs.
-  - Probably the best near-term option: fits the pressure-curve tuning work
-    and avoids the signing and packaging cost of the menu bar app.
+- **Interactive TUI.** Done: live panel with pen state, pressure meters,
+  link stats and single-key settings saved to `~/.config/inkbridge/`.
