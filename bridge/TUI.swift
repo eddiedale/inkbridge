@@ -3,6 +3,8 @@
 import Foundation
 
 var tui = false                 // panel is active (set in main)
+var switchRequested = false     // w pressed: main switches USB <-> Wi-Fi
+var statusMessage = ""          // shown in the panel, e.g. while switching
 var savedTermios = termios()
 var termiosSaved = false
 
@@ -80,6 +82,9 @@ func handleKeys(_ bytes: [UInt8]) -> Bool {
         case .char(UInt8(ascii: "s")): settings.smoothing.toggle()
         case .char(UInt8(ascii: "r")): settings.rotation = (settings.rotation + 90) % 360
         case .char(UInt8(ascii: "a")): settings.keepAspect.toggle()
+        case .char(UInt8(ascii: "w")):
+            switchRequested = true
+            continue
         default: continue
         }
         changed = true
@@ -129,7 +134,9 @@ func render() {
         "  \(bold)s\(reset)   smoothing       \(settings.smoothing ? "on" : "off")",
         "  \(bold)r\(reset)   rotation        \(settings.rotation)°  \(dim)\(rotationText)\(reset)",
         "  \(bold)a\(reset)   area map        \(settings.keepAspect ? "keep proportions" : "fill screen")",
+        "  \(bold)w\(reset)   connection      \(link)  \(dim)switch to \(link == "USB" ? "Wi-Fi" : "USB")\(reset)",
         "",
+        statusMessage.isEmpty ? "" : "  \u{1B}[33m\(statusMessage)\(reset)",
         "  \(dim)\(statsText)\(reset)",
         "  \(dim)q quit   settings are saved automatically\(reset)",
     ]

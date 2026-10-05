@@ -3,10 +3,10 @@
 Phase 3 items, roughly in order of usefulness. See `docs/results.md` for what
 already works.
 
-- [ ] **Wi-Fi stalls.** Wi-Fi works (`--host <tablet-ip>`, after
-  `rm-ssh-over-wlan on`) but has periodic 100 to 170 ms stalls; see
-  `docs/results.md`. Not tablet power save, not AWDL. Could try another
-  router/band, or turning power save off from inkbridge on connect.
+- [ ] **Wi-Fi stalls.** Wi-Fi works (`w` in the panel, or `--host`) and
+  inkbridge turns tablet power save off, but there are still periodic 100 to
+  170 ms stalls; see `docs/results.md`. Not tablet power save, not AWDL.
+  Could try another router or band.
 - [ ] **Side button.** Map `BTN_STYLUS` (331) to right-click, maybe
   `BTN_STYLUS2` (332) to middle-click or a modifier. Check first which codes
   the Pure's pen actually sends.

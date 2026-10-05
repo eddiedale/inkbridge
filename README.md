@@ -30,8 +30,8 @@ Known limits:
 - A reMarkable in **developer mode**, which gives root SSH access.
   **Turning on developer mode factory resets the tablet.** Sync or export
   your notebooks first.
-- A USB cable. Wi-Fi works (`rm-ssh-over-wlan on` on the tablet, then
-  `--host <tablet-ip>`) but showed periodic lag spikes in testing.
+- A USB cable, at least for the first connection. After that Wi-Fi works
+  too; see [Wi-Fi](#wi-fi).
 
 ## Setup
 
@@ -70,6 +70,7 @@ inkbridge   ● connected   USB 10.11.99.1
   s   smoothing       on
   r   rotation        90°  landscape, top edge right
   a   area map        fill screen
+  w   connection      USB  switch to Wi-Fi
 
   498 reports/s   lag p50 0.3 ms   p95 0.6 ms
   q quit   settings are saved automatically
@@ -108,6 +109,31 @@ updates. Delete that folder to be asked again.
 
 Without a key, inkbridge asks for the password and keeps the connection open
 for 10 minutes, so restarts in between do not ask again.
+
+### Wi-Fi
+
+USB has the lowest and steadiest latency. Wi-Fi works too, with a bit more
+lag and occasional short stalls.
+
+**Easiest:** start inkbridge over USB and press `w` in the panel. inkbridge
+turns on SSH over Wi-Fi on the tablet (once, it stays on), finds the
+tablet's Wi-Fi address and switches to it. You can unplug the cable then.
+Press `w` again to go back to USB.
+
+inkbridge remembers the mode: the next `build/inkbridge` starts over Wi-Fi,
+and falls back to USB if the tablet cannot be reached. This needs the SSH
+key from above, since the panel cannot ask for a password.
+
+**By hand:** with the cable in, run `ssh root@10.11.99.1 rm-ssh-over-wlan on`
+once. Find the tablet's Wi-Fi address under Settings > Help > About on the
+tablet, then:
+
+```
+build/inkbridge --host 192.168.1.23
+```
+
+Over Wi-Fi, inkbridge turns off the tablet's Wi-Fi power saving, which
+noticeably lowers latency. It comes back on when the tablet reboots.
 
 ### Options
 

@@ -16,6 +16,10 @@
 // are saved to ~/.config/inkbridge/settings.json. --rotate and --keep-aspect
 // override the saved values. --plain (or --debug) prints lines instead.
 //
+// USB is the default. Over Wi-Fi, press w in the panel (it enables SSH over
+// Wi-Fi on the tablet and finds its address while on USB), or pass --host.
+// The last mode is remembered, falling back to USB when Wi-Fi is unreachable.
+//
 // --stats prints report rate and transport lag once a second in plain mode.
 // --rate caps motion events per second (0 = every report); presses, lifts and
 // proximity changes are never delayed.
@@ -27,7 +31,9 @@ import Foundation
 
 // MARK: Options
 
-var host = "10.11.99.1"
+let usbHost = "10.11.99.1"
+var host = usbHost
+var hostGiven = false
 var device = "event2"
 var touchDevice = "event3"
 var grab = true
@@ -38,7 +44,9 @@ var rate = 0.0
 var args = CommandLine.arguments.dropFirst().makeIterator()
 while let arg = args.next() {
     switch arg {
-    case "--host": host = args.next() ?? host
+    case "--host":
+        host = args.next() ?? host
+        hostGiven = true
     case "--device": device = args.next() ?? device
     case "--touch-device": touchDevice = args.next() ?? touchDevice
     case "--rotate":
@@ -61,32 +69,143 @@ mapping = Mapping()
 
 // MARK: Connect
 
-offerKeySetup()
-print("Connecting to \(host)...")
-guard connect() else {
-    print("Could not connect. Is the tablet awake and connected (USB: 10.11.99.1)?")
-    exit(1)
+/// Connects without prompting; for use once the TUI owns the terminal.
+func connectQuietly() -> Bool {
+    guard let pid = spawnSSH(["-o", "BatchMode=yes"] + sshOptions + ["root@\(host)", "true"],
+                             stdin: nil, stdout: nil, quiet: true) else { return false }
+    return wait(pid) == 0
 }
 
-// -tt: pty on the tablet so evtest line-buffers and gets SIGHUP (releasing the
-// grab) when the connection drops. killall clears evtests orphaned by earlier
-// runs, which would otherwise keep the grab and starve this one. The touch
-// grab runs in the background of the same shell, so the hangup reaches it too.
-let remote = grab
-    ? "killall evtest 2>/dev/null; evtest --grab /dev/input/\(touchDevice) >/dev/null & "
-      + "T=$!; evtest --grab /dev/input/\(device); kill $T"
-    : "killall evtest 2>/dev/null; exec evtest /dev/input/\(device)"
+// Start where we left off: Wi-Fi if that was the last mode and it answers.
+var connected = false
+if !hostGiven && settings.useWifi && !settings.wifiHost.isEmpty {
+    host = settings.wifiHost
+    print("Connecting over Wi-Fi to \(host)...")
+    connected = connectQuietly()
+    if !connected {
+        print("Wi-Fi not reachable, using USB.")
+        host = usbHost
+    }
+}
+if !connected {
+    offerKeySetup()
+    print("Connecting to \(host)...")
+    guard connect() else {
+        print("Could not connect. Is the tablet awake and connected (USB: \(usbHost))?")
+        exit(1)
+    }
+}
 
-// stdin is a pipe we never write to: with -tt, an immediate EOF on stdin (as
-// from /dev/null) makes ssh close the session and drop all output.
-var fds: [Int32] = [0, 0], stdinFDs: [Int32] = [0, 0]
-pipe(&fds)
-pipe(&stdinFDs)
-// Keep our ends of the pipes out of the ssh process, so EOF arrives on exit.
-_ = fcntl(fds[0], F_SETFD, FD_CLOEXEC)
-_ = fcntl(stdinFDs[1], F_SETFD, FD_CLOEXEC)
+// MARK: Stream
+
+/// The command run on the tablet. -tt gives evtest a pty so it line-buffers.
+/// killall clears evtests left by earlier runs or connections, which would
+/// otherwise keep the grab and starve this one. The touch grab runs in the
+/// background of the same shell. Over Wi-Fi, power saving is turned off for
+/// lower latency (until the tablet reboots).
+func remoteCommand() -> String {
+    var command = "killall evtest 2>/dev/null; "
+    if host != usbHost { command += "iw dev wlan0 set power_save off 2>/dev/null; " }
+    return command + (grab
+        ? "evtest --grab /dev/input/\(touchDevice) >/dev/null & T=$!; evtest --grab /dev/input/\(device); kill $T"
+        : "exec evtest /dev/input/\(device)")
+}
 
 var sshPID: pid_t = 0
+var streamFD: Int32 = -1       // evtest output
+var streamStdin: Int32 = -1    // kept open: with -tt, EOF on stdin ends the session
+var pending = Data()
+
+func startStream() -> Bool {
+    var output: [Int32] = [0, 0], input: [Int32] = [0, 0]
+    pipe(&output)
+    pipe(&input)
+    // Keep our ends of the pipes out of the ssh process, so EOF arrives on exit.
+    _ = fcntl(output[0], F_SETFD, FD_CLOEXEC)
+    _ = fcntl(input[1], F_SETFD, FD_CLOEXEC)
+    // -q: no "Shared connection closed" message drawn over the panel.
+    let pid = spawnSSH(["-tt", "-q"] + sshOptions + ["root@\(host)", remoteCommand()], stdin: input[0], stdout: output[1])
+    close(output[1])
+    close(input[0])
+    guard let pid else {
+        close(output[0])
+        close(input[1])
+        return false
+    }
+    sshPID = pid
+    streamFD = output[0]
+    streamStdin = input[1]
+    return true
+}
+
+func stopStream() {
+    releasePen()
+    if sshPID > 0 {
+        kill(sshPID, SIGTERM)
+        _ = wait(sshPID)
+        sshPID = 0
+    }
+    close(streamFD)
+    close(streamStdin)
+    pending.removeAll()
+}
+
+/// Runs a command on the tablet and returns its output.
+func remoteOutput(_ command: String) -> String? {
+    var output: [Int32] = [0, 0]
+    pipe(&output)
+    _ = fcntl(output[0], F_SETFD, FD_CLOEXEC)
+    let pid = spawnSSH(["-o", "BatchMode=yes"] + sshOptions + ["root@\(host)", command],
+                       stdin: nil, stdout: output[1], quiet: true)
+    close(output[1])
+    var data = Data()
+    var chunk = [UInt8](repeating: 0, count: 4096)
+    while true {
+        let n = read(output[0], &chunk, chunk.count)
+        if n <= 0 { break }
+        data.append(chunk, count: n)
+    }
+    close(output[0])
+    guard let pid, wait(pid) == 0 else { return nil }
+    return String(data: data, encoding: .utf8)
+}
+
+/// Switches between USB and Wi-Fi from the panel. Going to Wi-Fi from USB
+/// enables SSH over Wi-Fi on the tablet if needed and looks up its address.
+func switchConnection() {
+    let previous = host
+    let target: String
+    if host == usbHost {
+        statusMessage = "Setting up Wi-Fi..."
+        render()
+        let setup = "[ -f /data/internal/rm_enable_ssh_wifi_marker ] || rm-ssh-over-wlan on >/dev/null; "
+            + "ip -4 -o addr show wlan0"
+        guard let output = remoteOutput(setup),
+              let r = output.range(of: #"inet (\d+\.\d+\.\d+\.\d+)"#, options: .regularExpression) else {
+            statusMessage = "The tablet has no Wi-Fi address. Is its Wi-Fi on?"
+            return
+        }
+        target = String(output[r].dropFirst(5))
+        settings.wifiHost = target
+    } else {
+        target = usbHost
+    }
+    let name = target == usbHost ? "USB" : "Wi-Fi \(target)"
+    statusMessage = "Switching to \(name)..."
+    render()
+    stopStream()
+    host = target
+    if connectQuietly() && startStream() {
+        settings.useWifi = host != usbHost
+        settings.save()
+        statusMessage = ""
+    } else {
+        host = previous
+        statusMessage = "Could not reach \(name)" + (target == usbHost ? " (is the cable in?)" : "")
+        if !startStream() { quitRequested = true }
+    }
+}
+
 var quitRequested = false
 // Stop SSH on a signal; the read loop then sees EOF and cleans up. In the TUI,
 // Ctrl-C arrives as a key instead.
@@ -97,11 +216,7 @@ for sig in [SIGINT, SIGTERM, SIGHUP] {
     }
 }
 
-guard let pid = spawnSSH(["-tt"] + sshOptions + ["root@\(host)", remote],
-                         stdin: stdinFDs[0], stdout: fds[1]) else { exit(1) }
-sshPID = pid
-close(fds[1])
-close(stdinFDs[0])
+guard startStream() else { exit(1) }
 
 tui = !plain && !debug && isatty(0) != 0 && isatty(1) != 0
 if tui {
@@ -112,11 +227,9 @@ if tui {
 
 // MARK: Main loop
 
-let fd = fds[0]
 var buffer = [UInt8](repeating: 0, count: 65536)
-var pending = Data()
 var nextRender = 0.0
-loop: while true {
+loop: while !quitRequested {
     let now = Date().timeIntervalSince1970
     var timeout = -1.0
     if tui {
@@ -129,7 +242,7 @@ loop: while true {
     // With --rate, a throttled motion must still go out if the pen stops moving.
     if let due = motionDue() { timeout = timeout < 0 ? due : min(timeout, due) }
 
-    var pfds = [pollfd(fd: fd, events: Int16(POLLIN), revents: 0)]
+    var pfds = [pollfd(fd: streamFD, events: Int16(POLLIN), revents: 0)]
     if tui { pfds.append(pollfd(fd: 0, events: Int16(POLLIN), revents: 0)) }
     let ready = poll(&pfds, nfds_t(pfds.count), timeout < 0 ? -1 : Int32((timeout * 1000).rounded(.up)))
     if ready < 0 {
@@ -142,13 +255,17 @@ loop: while true {
         let n = read(0, &buffer, buffer.count)
         if n > 0 && !handleKeys(Array(buffer[0..<n])) {
             quitRequested = true
-            kill(sshPID, SIGTERM)
             break
         }
         nextRender = 0
+        if switchRequested {
+            switchRequested = false
+            switchConnection()
+            continue
+        }
     }
     if pfds[0].revents != 0 {
-        let n = read(fd, &buffer, buffer.count)
+        let n = read(streamFD, &buffer, buffer.count)
         if n < 0 && errno == EINTR { continue }
         if n <= 0 { break }
         pending.append(buffer, count: n)
@@ -163,7 +280,7 @@ loop: while true {
 }
 
 // Leave macOS in a clean state: no stuck button, pen out of proximity.
-releasePen()
+stopStream()
 leaveTUI()
 if quitRequested { stopRemote() }
-print("Disconnected (ssh exit \(wait(sshPID))).")
+print(quitRequested ? "Stopped." : "Connection to \(host) lost.")
