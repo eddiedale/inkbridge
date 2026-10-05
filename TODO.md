@@ -23,3 +23,22 @@ already works.
 - [ ] **Tilt direction check.** Tilt is rotated with the mapping, but the sign
   (does leaning right give positive X?) is unverified. Record with `--debug`
   while leaning right, then toward you.
+
+## Ideas
+
+- **Menu bar app.** Drag-to-Applications app with a menu bar icon: connect /
+  disconnect, status, settings (host, rotation, fill, pressure curve) and
+  auto-reconnect. Considerations:
+  - No terminal for the SSH password: on first connect, ask once and install
+    an app-owned SSH key on the tablet (or keep the password in Keychain and
+    pass it via `SSH_ASKPASS`).
+  - Unsigned builds trigger an "unidentified developer" warning; clean
+    distribution needs a Developer ID and notarization ($99/year). Not
+    possible on the App Store (posting input events needs no sandbox).
+  - The app needs its own input-control permission; unsigned rebuilds can
+    reset it during development.
+  - Build the `.app` with a small script (binary, Info.plist, codesign)
+    rather than an Xcode project. Refactor the bridge's top-level code into
+    a start/stop object first.
+  - Best done after the pressure curve, so the GUI exposes settings that are
+    already tuned.
