@@ -42,3 +42,19 @@ already works.
     a start/stop object first.
   - Best done after the pressure curve, so the GUI exposes settings that are
     already tuned.
+- **Localhost tuning page.** `inkbridge` serves a small settings page on
+  `http://localhost:PORT`: connect button, status, and a live pressure-curve
+  editor showing real pen pressure. Decent for tuning, but not an end
+  product: the native binary still has to be started from a terminal and
+  granted permission, and a browser alone cannot do the job (no SSH, and
+  pages cannot post system-wide pen events).
+- **Interactive TUI.** Instead of streaming silently, show a small live
+  panel in the terminal: connection state, report rate, a pressure meter, and
+  settings changed with single keys in real time (rotation, fill, pressure
+  curve and threshold, later prediction). Plain ANSI escapes, no
+  dependencies. Considerations:
+  - Switch the terminal to raw mode only after SSH has asked for the
+    password, and restore it on exit, crash or Ctrl-C.
+  - Save tweaked settings to a small config file so they stick between runs.
+  - Probably the best near-term option: fits the pressure-curve tuning work
+    and avoids the signing and packaging cost of the menu bar app.
