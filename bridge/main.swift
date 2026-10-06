@@ -123,13 +123,18 @@ if !hostGiven && settings.useWifi != (host != usbHost) {
 /// background of the same shell. Without the pen grab the tablet draws too.
 /// Over Wi-Fi, power saving is turned off for lower latency (until the
 /// tablet reboots).
+///
+/// The evtests run in the background while the shell acts as a watchdog: it
+/// expects a heartbeat line from us every second (see the main loop) and
+/// kills them, releasing the grabs, after 5 s of silence or on EOF. Without
+/// it, a dropped connection (cable pulled, Wi-Fi gone, terminal closed) could
+/// leave the tablet's pen and touch grabbed until the next run or a reboot.
 func remoteCommand() -> String {
-    var command = stopOurEvtests() + "; "
+    var command = stopOurEvtests() + "; stty -echo 2>/dev/null; "
     if host != usbHost { command += "iw dev wlan0 set power_save off 2>/dev/null; " }
-    let pen = "evtest \(settings.drawOnTablet ? "" : "--grab ")/dev/input/\(device)"
-    return command + (settings.touchOnTablet
-        ? "exec \(pen)"
-        : "evtest --grab /dev/input/\(touchDevice) >/dev/null & T=$!; \(pen); kill $T")
+    if !settings.touchOnTablet { command += "evtest --grab /dev/input/\(touchDevice) >/dev/null & T=$!; " }
+    command += "evtest \(settings.drawOnTablet ? "" : "--grab ")/dev/input/\(device) & E=$!; "
+    return command + "while read -t 5 x; do :; done; kill -9 $E $T 2>/dev/null"
 }
 
 /// Restarts the stream so a changed grab setting takes effect.
@@ -259,6 +264,7 @@ if tui {
 
 var buffer = [UInt8](repeating: 0, count: 65536)
 var nextRender = 0.0
+var nextHeartbeat = 0.0
 loop: while !quitRequested {
     let now = Date().timeIntervalSince1970
     var timeout = -1.0
@@ -271,6 +277,12 @@ loop: while !quitRequested {
     }
     // With --rate, a throttled motion must still go out if the pen stops moving.
     if let due = motionDue() { timeout = timeout < 0 ? due : min(timeout, due) }
+    // Heartbeat for the watchdog on the tablet (see remoteCommand).
+    if now >= nextHeartbeat {
+        _ = write(streamStdin, "\n", 1)
+        nextHeartbeat = now + 1
+    }
+    timeout = timeout < 0 ? nextHeartbeat - now : min(timeout, nextHeartbeat - now)
 
     var pfds = [pollfd(fd: streamFD, events: Int16(POLLIN), revents: 0)]
     if tui { pfds.append(pollfd(fd: 0, events: Int16(POLLIN), revents: 0)) }
