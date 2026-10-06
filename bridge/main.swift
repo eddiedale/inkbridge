@@ -18,7 +18,7 @@
 //
 // USB is the default. Over Wi-Fi, press w in the panel (it enables SSH over
 // Wi-Fi on the tablet and finds its address while on USB), or pass --host.
-// The last mode is remembered, falling back to USB when Wi-Fi is unreachable.
+// At start the link that worked last is tried first, then the other one.
 //
 // --stats prints report rate and transport lag once a second in plain mode.
 // --rate caps motion events per second (0 = every report); presses, lifts and
@@ -76,16 +76,18 @@ func connectQuietly() -> Bool {
     return wait(pid) == 0
 }
 
-// Start where we left off: Wi-Fi if that was the last mode and it answers.
+// Try the last-used link first, then the other one (Wi-Fi only once its
+// address is known), so an unplugged cable or an absent network just works.
 var connected = false
-if !hostGiven && settings.useWifi && !settings.wifiHost.isEmpty {
-    host = settings.wifiHost
-    print("Connecting over Wi-Fi to \(host)...")
-    connected = connectQuietly()
-    if !connected {
-        print("Wi-Fi not reachable, using USB.")
-        host = usbHost
+if !hostGiven && !settings.wifiHost.isEmpty {
+    let order = settings.useWifi ? [settings.wifiHost, usbHost] : [usbHost, settings.wifiHost]
+    for candidate in order {
+        host = candidate
+        print("Connecting to \(host) (\(host == usbHost ? "USB" : "Wi-Fi"))...")
+        connected = connectQuietly()
+        if connected { break }
     }
+    if !connected { host = order[0] }
 }
 if !connected {
     offerKeySetup()
@@ -93,11 +95,17 @@ if !connected {
     guard connect() else {
         print("""
         Could not connect to \(host). Check that the tablet is awake and connected
-        (USB: \(usbHost)). If ssh said "Connection reset", the tablet's SSH server
-        is refusing connections; restarting the tablet fixes it.
+        (USB: \(usbHost)\(settings.wifiHost.isEmpty ? "" : ", Wi-Fi: \(settings.wifiHost)")). If ssh said \
+        "Connection reset", the tablet's SSH server is refusing connections;
+        restarting the tablet fixes it.
         """)
         exit(1)
     }
+}
+// Remember which link worked, so the next start tries it first.
+if !hostGiven && settings.useWifi != (host != usbHost) {
+    settings.useWifi = host != usbHost
+    settings.save()
 }
 
 // MARK: Stream

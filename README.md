@@ -120,9 +120,10 @@ turns on SSH over Wi-Fi on the tablet (once, it stays on), finds the
 tablet's Wi-Fi address and switches to it. You can unplug the cable then.
 Press `w` again to go back to USB.
 
-inkbridge remembers the mode: the next `build/inkbridge` starts over Wi-Fi,
-and falls back to USB if the tablet cannot be reached. This needs the SSH
-key from above, since the panel cannot ask for a password.
+You do not need to choose at start: inkbridge tries the link that worked
+last, then the other one, so plugging or unplugging the cable just works
+(the missing one costs a few seconds of timeout). This needs the SSH key
+from above, since the panel cannot ask for a password.
 
 **By hand:** with the cable in, run `ssh root@10.11.99.1 rm-ssh-over-wlan on`
 once. Find the tablet's Wi-Fi address under Settings > Help > About on the
