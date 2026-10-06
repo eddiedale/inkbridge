@@ -248,6 +248,10 @@ func handle(type: UInt16, code: UInt16, value: Int32) {
 func parse(line: String) {
     guard line.hasPrefix("Event:") else {
         if debug { print("evtest: \(line)") }
+        // evtest carries on without the grab, so the tablet would draw too.
+        if line.contains("grabbed by another process") {
+            statusMessage = "Another program holds the pen; the tablet may draw too. Restart inkbridge."
+        }
         return
     }
     if line.contains("SYN_REPORT") {

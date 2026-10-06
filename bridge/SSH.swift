@@ -59,9 +59,11 @@ func connect() -> Bool {
 
 /// Shell command that stops evtest processes reading our pen or touch device,
 /// leaving others alone (xovi-tripletap runs its own evtest on the power button).
+/// SIGKILL, because evtest catches SIGTERM and only exits on its next input
+/// event, so an idle stale one would keep the grab indefinitely.
 func stopOurEvtests() -> String {
     "for p in $(pidof evtest); do tr '\\0' ' ' < /proc/$p/cmdline 2>/dev/null | "
-        + "grep -q -e /dev/input/\(device) -e /dev/input/\(touchDevice) && kill $p; done; true"
+        + "grep -q -e /dev/input/\(device) -e /dev/input/\(touchDevice) && kill -9 $p; done; true"
 }
 
 /// Ends evtest on the tablet, releasing the pen and touch grabs. Needed on quit:
