@@ -70,6 +70,7 @@ inkbridge   ● connected   USB 10.11.99.1
   s   smoothing       on
   r   rotation        90°  landscape, top edge right
   a   area map        fill screen  whole tablet, shapes stretch a little
+  p   padding         2%  margin at the tablet edge
   w   connection      USB  switch to Wi-Fi
 
   498 reports/s   lag p50 0.3 ms   p95 0.6 ms
@@ -88,6 +89,9 @@ inkbridge   ● connected   USB 10.11.99.1
   part of the tablet in your screen's shape (in landscape on a 16:9 screen,
   the middle 76% of its height), so the full screen is reachable and shapes
   stay true.
+- **padding**: a margin around the tablet edge that maps just past the
+  screen edge, so you reach the edges of the screen comfortably before the
+  bezel. Default 2% of the tablet's short side (about 3 mm).
 - **smoothing**: the pen reports pressure only ~38 times a second; smoothing
   removes the steps this would leave in tapered strokes.
 

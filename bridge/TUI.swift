@@ -83,6 +83,9 @@ func handleKeys(_ bytes: [UInt8]) -> Bool {
         case .char(UInt8(ascii: "r")): settings.rotation = (settings.rotation + 90) % 360
         case .char(UInt8(ascii: "a")):
             settings.area = [.fill: .keep, .keep: .crop, .crop: .fill][settings.area]!
+        case .char(UInt8(ascii: "p")):
+            let steps = [0.0, 0.01, 0.02, 0.03, 0.05]
+            settings.padding = steps.first { $0 > settings.padding + 0.001 } ?? 0
         case .char(UInt8(ascii: "w")):
             switchRequested = true
             continue
@@ -123,8 +126,8 @@ func render() {
     case .keep: areaText = "keep proportions  \(dim)whole tablet, bars on screen\(reset)"
     case .crop:
         let r = mapping.region
-        let used = r.width < 1 ? "middle \(Int((r.width * 100).rounded()))% of tablet width"
-                               : "middle \(Int((r.height * 100).rounded()))% of tablet height"
+        let used = r.width < r.height ? "middle \(Int((r.width * 100).rounded()))% of tablet width"
+                                      : "middle \(Int((r.height * 100).rounded()))% of tablet height"
         areaText = "crop to screen  \(dim)\(used)\(reset)"
     }
     let fresh = Date().timeIntervalSince1970 - linkStats.updated < 2
@@ -145,6 +148,7 @@ func render() {
         "  \(bold)s\(reset)   smoothing       \(settings.smoothing ? "on" : "off")",
         "  \(bold)r\(reset)   rotation        \(settings.rotation)°  \(dim)\(rotationText)\(reset)",
         "  \(bold)a\(reset)   area map        \(areaText)",
+        "  \(bold)p\(reset)   padding         \(Int((settings.padding * 100).rounded()))%  \(dim)margin at the tablet edge\(reset)",
         "  \(bold)w\(reset)   connection      \(link)  \(dim)switch to \(link == "USB" ? "Wi-Fi" : "USB")\(reset)",
         "",
         statusMessage.isEmpty ? "" : "  \u{1B}[33m\(statusMessage)\(reset)",

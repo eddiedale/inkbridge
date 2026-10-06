@@ -9,6 +9,7 @@ enum Area: String { case fill, keep, crop }
 struct Settings {
     var rotation = 90         // how far the tablet is turned clockwise from portrait
     var area = Area.fill      // how the tablet maps onto the display (see Mapping)
+    var padding = 0.02        // margin around the tablet edge, fraction of its short side
     var curve = 1.5           // pressure exponent: below 1 is soft, above 1 is firm
     var minPressure = 0.03    // raw pressure needed to start a stroke (0...1)
     var maxPressure = 0.8     // raw pressure that gives full output (0...1)
@@ -23,6 +24,7 @@ struct Settings {
         guard let data = FileManager.default.contents(atPath: path),
               let d = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return s }
         if let v = d["rotation"] as? Int, [0, 90, 180, 270].contains(v) { s.rotation = v }
+        if let v = d["padding"] as? Double { s.padding = v }
         if let v = d["area"] as? String, let a = Area(rawValue: v) { s.area = a }
         else if d["keepAspect"] as? Bool == true { s.area = .keep }   // older settings files
         if let v = d["curve"] as? Double { s.curve = v }
@@ -37,7 +39,7 @@ struct Settings {
     func save() {
         // Decimal keeps the file tidy (0.04, not 0.040000000000000001).
         func round2(_ v: Double) -> NSDecimalNumber { NSDecimalNumber(string: String(format: "%.2f", v)) }
-        let d: [String: Any] = ["rotation": rotation, "area": area.rawValue, "curve": round2(curve),
+        let d: [String: Any] = ["rotation": rotation, "area": area.rawValue, "padding": round2(padding), "curve": round2(curve),
                                 "minPressure": round2(minPressure), "maxPressure": round2(maxPressure),
                                 "smoothing": smoothing, "useWifi": useWifi, "wifiHost": wifiHost]
         try? FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)

@@ -15,10 +15,13 @@ let absTiltX: UInt16 = 26, absTiltY: UInt16 = 27
 let btnToolPen: UInt16 = 320, btnToolRubber: UInt16 = 321, btnTouch: UInt16 = 330
 
 /// Maps raw pen coordinates to global display points on the main display.
-///   fill: the whole tablet onto the whole display (shapes stretch a little)
-///   keep: the whole tablet, letterboxed on the display in its own proportions
-///   crop: a centred part of the tablet in the display's proportions, onto the
-///         whole display; pen positions outside it stick to the screen edge
+/// First a margin (settings.padding, a fraction of the tablet's short side)
+/// is taken off every edge, so the screen edge is reached before the bezel.
+/// Pen positions in the margin stick to the screen edge. Then:
+///   fill: the usable area onto the whole display (shapes stretch a little)
+///   keep: the usable area, letterboxed on the display in its own proportions
+///   crop: a centred part of the usable area in the display's proportions,
+///         onto the whole display
 struct Mapping {
     let rect: CGRect        // display area the tablet region maps to
     let region: CGRect      // used part of the (rotated) tablet, in 0...1
@@ -26,30 +29,37 @@ struct Mapping {
 
     init(display: CGRect = CGDisplayBounds(CGMainDisplayID())) {
         rotation = settings.rotation
-        // The raw pen range has the screen's shape (1404 x 1872), so its
-        // ratio is the physical aspect.
-        let tabletAspect = rotation % 180 == 0 ? maxX / maxY : maxY / maxX
+        // Work in physical units with the (rotated) tablet's height as 1. The
+        // raw pen range has the screen's shape (1404 x 1872), so its ratio is
+        // the physical aspect.
+        let tabletWidth = rotation % 180 == 0 ? maxX / maxY : maxY / maxX
+        let shortSide = min(tabletWidth, 1)
+        let pad = settings.padding * shortSide
+        let usable = CGRect(x: pad, y: pad, width: tabletWidth - 2 * pad, height: 1 - 2 * pad)
+        let usableAspect = usable.width / usable.height
         let displayAspect = display.width / display.height
+
+        var used = usable
         switch settings.area {
         case .keep:
-            let scale = min(display.width / tabletAspect, display.height)
-            let size = CGSize(width: tabletAspect * scale, height: scale)
+            let scale = min(display.width / usableAspect, display.height)
+            let size = CGSize(width: usableAspect * scale, height: scale)
             rect = CGRect(x: display.midX - size.width / 2, y: display.midY - size.height / 2,
                           width: size.width, height: size.height)
-            region = CGRect(x: 0, y: 0, width: 1, height: 1)
         case .crop:
             rect = display
-            if displayAspect > tabletAspect {
-                let h = tabletAspect / displayAspect
-                region = CGRect(x: 0, y: (1 - h) / 2, width: 1, height: h)
+            if displayAspect > usableAspect {
+                let h = usable.width / displayAspect
+                used = CGRect(x: usable.minX, y: usable.midY - h / 2, width: usable.width, height: h)
             } else {
-                let w = displayAspect / tabletAspect
-                region = CGRect(x: (1 - w) / 2, y: 0, width: w, height: 1)
+                let w = usable.height * displayAspect
+                used = CGRect(x: usable.midX - w / 2, y: usable.minY, width: w, height: usable.height)
             }
         case .fill:
             rect = display
-            region = CGRect(x: 0, y: 0, width: 1, height: 1)
         }
+        region = CGRect(x: used.minX / tabletWidth, y: used.minY,
+                        width: used.width / tabletWidth, height: used.height)
     }
 
     func point(x: Int32, y: Int32) -> CGPoint {
