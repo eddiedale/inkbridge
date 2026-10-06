@@ -21,8 +21,14 @@ smoothing come from the tablet's pen firmware (see recon-pure.md).
 Landscape, `--rotate 90` (tablet top edge on the right), now the default.
 Tracing the screen border reached raw X 23..9609 and Y 70..12966, so the full
 digitizer range lines up with the visible screen; no calibration offset needed.
-On a 2560x1440 display the letterboxed area is 2560x1402 (19 pt bars top and
+On a 2560x1440 display the letterboxed area was 2560x1402 (19 pt bars top and
 bottom); the traced border landed at screen x 7..2546, y 22..1419.
+
+Correction (2026-10-06): that letterbox used a wrong tablet aspect (0.548,
+from misreading the evtest `Resolution` values). The display is 1404 x 1872
+(0.75), matching the raw pen range, so in landscape the tablet is 4:3 and
+`--keep-aspect` now gives 1920x1440 with 320 pt bars left and right. Fill
+(the default) was not affected.
 
 # Wi-Fi test
 

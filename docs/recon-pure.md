@@ -9,6 +9,9 @@ Date: 2026-10-05. Raw output in `recon-raw.txt`, a 6.5 s pen capture in
   24 bytes (`<qqHHi`: sec, usec, type, code, value).
 - OS: Codex Linux 5.8.203, firmware 3.28.0.172.
 - `evtest` is on the device. `timeout` is not.
+- **Display: 1404 x 1872 portrait**, a 10.3" E-Ink panel (`ED103` in the
+  waveform file names), about 226 DPI. Taken from the built-in screens in
+  `/usr/share/remarkable/` (suspended.png etc.), which are all that size.
 - DRM mode reports `260x1408` on `card0-DPI-1`, which looks like raw e-ink
   panel timing, not the visible resolution. Not needed for mapping.
 
@@ -37,10 +40,10 @@ Keys: `BTN_TOOL_PEN`, `BTN_TOOL_RUBBER`, `BTN_TOUCH`, `BTN_STYLUS`,
 
 Observations from the capture:
 
-- **X and Y have different resolutions**, so raw counts are not square. The
-  physical aspect is (9620/2400) : (13000/1776) = 4.01 : 7.32, about 0.548,
-  not the raw 0.74. Map using resolution-scaled units. Orientation (which axis
-  is the long edge of the screen) still needs a check in Phase 2.
+- **The raw pen range has the screen's shape.** 9620 : 13000 = 0.74, and the
+  display is 1404 x 1872 = 0.75 (see below). The per-axis `Resolution`
+  values (2400, 1776) do not describe the physical size; an earlier version of
+  this note read them as units per inch and got a wrong aspect of 0.548.
 - **Position report rate**: about 580 Hz while drawing (median 1.7 ms between
   `SYN_REPORT`s), about 500 Hz while hovering. Frames carry only the axes that
   changed; X or Y alone happens.

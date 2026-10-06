@@ -6,7 +6,6 @@ import Foundation
 // MARK: Pen geometry (from docs/recon-pure.md)
 
 let maxX = 9620.0, maxY = 13000.0
-let resX = 2400.0, resY = 1776.0      // units per inch, differ per axis
 let pressureRange = 4096.0
 let maxTilt = 9000.0                  // hundredths of a degree
 
@@ -24,7 +23,9 @@ struct Mapping {
     init(display: CGRect = CGDisplayBounds(CGMainDisplayID())) {
         rotation = settings.rotation
         if !settings.keepAspect { rect = display; return }
-        let portraitW = maxX / resX, portraitH = maxY / resY
+        // The raw pen range has the screen's shape (1404 x 1872), so its
+        // ratio is the physical aspect.
+        let portraitW = maxX, portraitH = maxY
         let (w, h) = rotation % 180 == 0 ? (portraitW, portraitH) : (portraitH, portraitW)
         let scale = min(display.width / w, display.height / h)
         let size = CGSize(width: w * scale, height: h * scale)
