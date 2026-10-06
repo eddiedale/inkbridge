@@ -57,11 +57,18 @@ func connect() -> Bool {
     return wait(pid) == 0
 }
 
+/// Shell command that stops evtest processes reading our pen or touch device,
+/// leaving others alone (xovi-tripletap runs its own evtest on the power button).
+func stopOurEvtests() -> String {
+    "for p in $(pidof evtest); do tr '\\0' ' ' < /proc/$p/cmdline 2>/dev/null | "
+        + "grep -q -e /dev/input/\(device) -e /dev/input/\(touchDevice) && kill $p; done; true"
+}
+
 /// Ends evtest on the tablet, releasing the pen and touch grabs. Needed on quit:
 /// the stream runs through the shared connection, which outlives our ssh client,
 /// so the remote session does not get a hangup.
 func stopRemote() {
-    if let pid = spawnSSH(["-o", "BatchMode=yes"] + sshOptions + ["root@\(host)", "killall evtest 2>/dev/null; true"],
+    if let pid = spawnSSH(["-o", "BatchMode=yes"] + sshOptions + ["root@\(host)", stopOurEvtests()],
                           stdin: nil, stdout: nil, quiet: true) {
         _ = wait(pid)
     }
@@ -74,7 +81,10 @@ func stopRemote() {
 /// need no password. The choice, or a "no", is remembered in ~/.config/inkbridge.
 func offerKeySetup() {
     let fm = FileManager.default
-    guard isatty(0) != 0, !fm.fileExists(atPath: skipKeyFile) else { return }
+    // Not interactive, declined before, or a key is already set up. If that key
+    // stops working, the connect step reports it rather than offering a new one.
+    guard isatty(0) != 0, !fm.fileExists(atPath: skipKeyFile),
+          !fm.fileExists(atPath: keyChoiceFile) else { return }
 
     // Key login (or a live shared connection) already works: nothing to do.
     if let pid = spawnSSH(["-o", "BatchMode=yes"] + sshOptions + ["root@\(host)", "true"],

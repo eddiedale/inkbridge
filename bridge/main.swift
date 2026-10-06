@@ -91,7 +91,11 @@ if !connected {
     offerKeySetup()
     print("Connecting to \(host)...")
     guard connect() else {
-        print("Could not connect. Is the tablet awake and connected (USB: \(usbHost))?")
+        print("""
+        Could not connect to \(host). Check that the tablet is awake and connected
+        (USB: \(usbHost)). If ssh said "Connection reset", the tablet's SSH server
+        is refusing connections; restarting the tablet fixes it.
+        """)
         exit(1)
     }
 }
@@ -99,12 +103,12 @@ if !connected {
 // MARK: Stream
 
 /// The command run on the tablet. -tt gives evtest a pty so it line-buffers.
-/// killall clears evtests left by earlier runs or connections, which would
-/// otherwise keep the grab and starve this one. The touch grab runs in the
+/// Evtests on our devices left by earlier runs or connections are stopped
+/// first, as they would otherwise keep the grab and starve this one. The touch grab runs in the
 /// background of the same shell. Over Wi-Fi, power saving is turned off for
 /// lower latency (until the tablet reboots).
 func remoteCommand() -> String {
-    var command = "killall evtest 2>/dev/null; "
+    var command = stopOurEvtests() + "; "
     if host != usbHost { command += "iw dev wlan0 set power_save off 2>/dev/null; " }
     return command + (grab
         ? "evtest --grab /dev/input/\(touchDevice) >/dev/null & T=$!; evtest --grab /dev/input/\(device); kill $T"
