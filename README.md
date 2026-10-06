@@ -69,7 +69,7 @@ inkbridge   ● connected   USB 10.11.99.1
   ⇧↓↑ max pressure    80%  more is full pressure
   s   smoothing       on
   r   rotation        90°  landscape, top edge right
-  a   area map        fill screen
+  a   area map        fill screen  whole tablet, shapes stretch a little
   w   connection      USB  switch to Wi-Fi
 
   498 reports/s   lag p50 0.3 ms   p95 0.6 ms
@@ -82,6 +82,12 @@ inkbridge   ● connected   USB 10.11.99.1
   leaves no ink. Default 3%.
 - **max pressure**: how hard you need to press for full output, so you reach
   the thickest stroke without pushing the pen to its limit. Default 80%.
+- **area map**: how the tablet maps onto your screen. *fill screen* uses the
+  whole tablet and stretches shapes a little to fit. *keep proportions* uses
+  the whole tablet with bars on the screen. *crop to screen* uses a centred
+  part of the tablet in your screen's shape (in landscape on a 16:9 screen,
+  the middle 76% of its height), so the full screen is reachable and shapes
+  stay true.
 - **smoothing**: the pen reports pressure only ~38 times a second; smoothing
   removes the steps this would leave in tapered strokes.
 
@@ -143,7 +149,7 @@ noticeably lowers latency. It comes back on when the tablet reboots.
 |---|---|---|
 | `--host` | `10.11.99.1` | tablet address |
 | `--rotate 0\|90\|180\|270` | `90` | how far the tablet is turned clockwise from portrait |
-| `--keep-aspect` | off | keep the tablet's proportions instead of filling the display |
+| `--area fill\|keep\|crop` | `fill` | how the tablet maps onto the display (see area map above) |
 | `--device` | `event2` | pen input device on the tablet |
 | `--touch-device` | `event3` | touch input device, grabbed so gestures are ignored |
 | `--no-grab` | off | leave pen and touch working on the tablet as well |

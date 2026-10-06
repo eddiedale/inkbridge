@@ -81,7 +81,8 @@ func handleKeys(_ bytes: [UInt8]) -> Bool {
         case .shiftDown: settings.maxPressure = max(settings.minPressure + 0.1, step(settings.maxPressure, -0.05))
         case .char(UInt8(ascii: "s")): settings.smoothing.toggle()
         case .char(UInt8(ascii: "r")): settings.rotation = (settings.rotation + 90) % 360
-        case .char(UInt8(ascii: "a")): settings.keepAspect.toggle()
+        case .char(UInt8(ascii: "a")):
+            settings.area = [.fill: .keep, .keep: .crop, .crop: .fill][settings.area]!
         case .char(UInt8(ascii: "w")):
             switchRequested = true
             continue
@@ -116,6 +117,16 @@ func render() {
     let rotationText = [0: "portrait", 90: "landscape, top edge right",
                         180: "portrait, upside down", 270: "landscape, top edge left"][settings.rotation] ?? ""
 
+    let areaText: String
+    switch settings.area {
+    case .fill: areaText = "fill screen  \(dim)whole tablet, shapes stretch a little\(reset)"
+    case .keep: areaText = "keep proportions  \(dim)whole tablet, bars on screen\(reset)"
+    case .crop:
+        let r = mapping.region
+        let used = r.width < 1 ? "middle \(Int((r.width * 100).rounded()))% of tablet width"
+                               : "middle \(Int((r.height * 100).rounded()))% of tablet height"
+        areaText = "crop to screen  \(dim)\(used)\(reset)"
+    }
     let fresh = Date().timeIntervalSince1970 - linkStats.updated < 2
     let statsText = fresh
         ? String(format: "%d reports/s   lag p50 %.1f ms   p95 %.1f ms", linkStats.reports, linkStats.p50, linkStats.p95)
@@ -133,7 +144,7 @@ func render() {
         "  \(bold)⇧↓↑\(reset) max pressure    \(Int((settings.maxPressure * 100).rounded()))%  \(dim)more is full pressure\(reset)",
         "  \(bold)s\(reset)   smoothing       \(settings.smoothing ? "on" : "off")",
         "  \(bold)r\(reset)   rotation        \(settings.rotation)°  \(dim)\(rotationText)\(reset)",
-        "  \(bold)a\(reset)   area map        \(settings.keepAspect ? "keep proportions" : "fill screen")",
+        "  \(bold)a\(reset)   area map        \(areaText)",
         "  \(bold)w\(reset)   connection      \(link)  \(dim)switch to \(link == "USB" ? "Wi-Fi" : "USB")\(reset)",
         "",
         statusMessage.isEmpty ? "" : "  \u{1B}[33m\(statusMessage)\(reset)",

@@ -14,23 +14,42 @@ let absX: UInt16 = 0, absY: UInt16 = 1, absPressure: UInt16 = 24
 let absTiltX: UInt16 = 26, absTiltY: UInt16 = 27
 let btnToolPen: UInt16 = 320, btnToolRubber: UInt16 = 321, btnTouch: UInt16 = 330
 
-/// Maps raw pen coordinates to global display points on the main display,
-/// filling it, or keeping the physical aspect ratio (letterboxed).
+/// Maps raw pen coordinates to global display points on the main display.
+///   fill: the whole tablet onto the whole display (shapes stretch a little)
+///   keep: the whole tablet, letterboxed on the display in its own proportions
+///   crop: a centred part of the tablet in the display's proportions, onto the
+///         whole display; pen positions outside it stick to the screen edge
 struct Mapping {
-    let rect: CGRect
+    let rect: CGRect        // display area the tablet region maps to
+    let region: CGRect      // used part of the (rotated) tablet, in 0...1
     let rotation: Int
 
     init(display: CGRect = CGDisplayBounds(CGMainDisplayID())) {
         rotation = settings.rotation
-        if !settings.keepAspect { rect = display; return }
         // The raw pen range has the screen's shape (1404 x 1872), so its
         // ratio is the physical aspect.
-        let portraitW = maxX, portraitH = maxY
-        let (w, h) = rotation % 180 == 0 ? (portraitW, portraitH) : (portraitH, portraitW)
-        let scale = min(display.width / w, display.height / h)
-        let size = CGSize(width: w * scale, height: h * scale)
-        rect = CGRect(x: display.midX - size.width / 2, y: display.midY - size.height / 2,
-                      width: size.width, height: size.height)
+        let tabletAspect = rotation % 180 == 0 ? maxX / maxY : maxY / maxX
+        let displayAspect = display.width / display.height
+        switch settings.area {
+        case .keep:
+            let scale = min(display.width / tabletAspect, display.height)
+            let size = CGSize(width: tabletAspect * scale, height: scale)
+            rect = CGRect(x: display.midX - size.width / 2, y: display.midY - size.height / 2,
+                          width: size.width, height: size.height)
+            region = CGRect(x: 0, y: 0, width: 1, height: 1)
+        case .crop:
+            rect = display
+            if displayAspect > tabletAspect {
+                let h = tabletAspect / displayAspect
+                region = CGRect(x: 0, y: (1 - h) / 2, width: 1, height: h)
+            } else {
+                let w = displayAspect / tabletAspect
+                region = CGRect(x: (1 - w) / 2, y: 0, width: w, height: 1)
+            }
+        case .fill:
+            rect = display
+            region = CGRect(x: 0, y: 0, width: 1, height: 1)
+        }
     }
 
     func point(x: Int32, y: Int32) -> CGPoint {
@@ -42,7 +61,9 @@ struct Mapping {
         case 270: (u, v) = (ny, 1 - nx)
         default: (u, v) = (nx, ny)
         }
-        return CGPoint(x: rect.minX + u * rect.width, y: rect.minY + v * rect.height)
+        let cu = min(1, max(0, (u - region.minX) / region.width))
+        let cv = min(1, max(0, (v - region.minY) / region.height))
+        return CGPoint(x: rect.minX + cu * rect.width, y: rect.minY + cv * rect.height)
     }
 
     /// Rotates raw tilt the same way as position, scaled to -1...1.

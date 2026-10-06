@@ -2,7 +2,8 @@
 //
 // Usage:
 //   swiftc -O bridge/*.swift -o build/inkbridge
-//   build/inkbridge [--host 10.11.99.1] [--rotate 0|90|180|270] [--keep-aspect]
+//   build/inkbridge [--host 10.11.99.1] [--rotate 0|90|180|270]
+//                   [--area fill|keep|crop]
 //                   [--device event2] [--touch-device event3] [--no-grab]
 //                   [--plain] [--debug] [--stats] [--rate 0]
 //
@@ -13,7 +14,7 @@
 //
 // In a terminal it shows a live panel where rotation, area map, pressure curve,
 // min/max pressure and smoothing can be changed with single keys; they
-// are saved to ~/.config/inkbridge/settings.json. --rotate and --keep-aspect
+// are saved to ~/.config/inkbridge/settings.json. --rotate and --area
 // override the saved values. --plain (or --debug) prints lines instead.
 //
 // USB is the default. Over Wi-Fi, press w in the panel (it enables SSH over
@@ -52,7 +53,10 @@ while let arg = args.next() {
     case "--rotate":
         if let r = args.next().flatMap(Int.init), [0, 90, 180, 270].contains(r) { settings.rotation = r }
         else { print("--rotate takes 0, 90, 180 or 270"); exit(1) }
-    case "--keep-aspect": settings.keepAspect = true
+    case "--area":
+        guard let a = args.next().flatMap(Area.init) else { print("--area takes fill, keep or crop"); exit(1) }
+        settings.area = a
+    case "--keep-aspect": settings.area = .keep   // older name
     case "--no-grab": grab = false
     case "--plain": plain = true
     case "--debug": debug = true
