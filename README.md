@@ -74,7 +74,7 @@ inkbridge   ● connected   USB 10.11.99.1
   w   connection      USB  switch to Wi-Fi
 
   498 reports/s   lag p50 0.3 ms   p95 0.6 ms
-  q quit   settings are saved automatically
+  h help   q quit   settings are saved automatically
 ```
 
 - **pressure curve**: below 1 is soft (light strokes get heavier), above 1
@@ -95,7 +95,8 @@ inkbridge   ● connected   USB 10.11.99.1
 - **smoothing**: the pen reports pressure only ~38 times a second; smoothing
   removes the steps this would leave in tapered strokes.
 
-Settings are saved to `~/.config/inkbridge/settings.json`. Press `q` to quit.
+Press `h` in the panel for a help screen explaining each setting. Settings
+are saved to `~/.config/inkbridge/settings.json`. Press `q` to quit.
 
 In Photoshop, set Brush Settings > Shape Dynamics > Size Jitter Control to
 Pen Pressure to see pressure.

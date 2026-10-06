@@ -5,6 +5,7 @@ import Foundation
 var tui = false                 // panel is active (set in main)
 var switchRequested = false     // w pressed: main switches USB <-> Wi-Fi
 var statusMessage = ""          // shown in the panel, e.g. while switching
+var showHelp = false            // h: help screen instead of the panel
 var savedTermios = termios()
 var termiosSaved = false
 
@@ -71,7 +72,16 @@ func keys(in bytes: [UInt8]) -> [Key] {
 func handleKeys(_ bytes: [UInt8]) -> Bool {
     var changed = false
     for key in keys(in: bytes) {
+        // On the help screen any key (except Ctrl-C) just closes it.
+        if showHelp {
+            if case .char(3) = key { return false }
+            showHelp = false
+            continue
+        }
         switch key {
+        case .char(UInt8(ascii: "h")), .char(UInt8(ascii: "?")):
+            showHelp = true
+            continue
         case .char(UInt8(ascii: "q")), .char(3): return false   // 3 = Ctrl-C
         case .right: settings.curve = min(3, ((settings.curve + 0.1) * 10).rounded() / 10)
         case .left: settings.curve = max(0.3, ((settings.curve - 0.1) * 10).rounded() / 10)
@@ -100,7 +110,64 @@ func handleKeys(_ bytes: [UInt8]) -> Bool {
     return true
 }
 
+let helpText = """
+\u{1B}[1minkbridge help\u{1B}[0m   \u{1B}[2many key closes this\u{1B}[0m
+
+\u{1B}[1mpen / pressure / raw\u{1B}[0m
+  What the pen is doing right now. "raw" is the pressure the tablet sends;
+  "pressure" is what Photoshop receives after the settings below.
+
+\u{1B}[1mpressure curve\u{1B}[0m  (← →)
+  Shapes how pressure grows as you press. 1.0 is linear. Below 1 is soft:
+  light strokes already come out heavy. Above 1 is firm: you need to press
+  harder for thick strokes, which gives more control over thin lines.
+
+\u{1B}[1mmin pressure\u{1B}[0m  (↓ ↑)
+  Pressure below this does not draw at all, so a pen resting on the screen
+  leaves no marks. Raise it if you get stray dots.
+
+\u{1B}[1mmax pressure\u{1B}[0m  (Shift ↓ ↑)
+  Pressure from this point on counts as full. Lower it to reach the
+  thickest stroke without pushing hard.
+
+\u{1B}[1msmoothing\u{1B}[0m  (s)
+  The tablet measures position about 580 times a second but pressure only
+  about 38 times. Without smoothing, slow tapers can show small steps in
+  brush size. Smoothing glides between pressure readings, at the cost of
+  pressure following about 10 ms later. Position is never delayed.
+
+\u{1B}[1mrotation\u{1B}[0m  (r)
+  How the tablet is held. 90 means landscape with its top edge on the right.
+
+\u{1B}[1marea map\u{1B}[0m  (a)
+  How the tablet maps onto your screen.
+  fill screen       whole tablet onto the whole screen; shapes stretch a
+                    little since the tablet is 4:3 and most screens are not
+  keep proportions  whole tablet, true shapes, unused bars on the screen
+  crop to screen    a centred part of the tablet in your screen's shape;
+                    true shapes and the whole screen, but a smaller area
+
+\u{1B}[1mpadding\u{1B}[0m  (p)
+  A margin around the tablet edge that maps past the screen edge, so you
+  reach the screen edges before the bezel. In % of the tablet's short side.
+
+\u{1B}[1mconnection\u{1B}[0m  (w)
+  Switch between USB (lowest lag) and Wi-Fi. At start, the link that worked
+  last is tried first, then the other.
+"""
+
 func render() {
+    if showHelp {
+        // Fit the window: lines past the bottom would scroll and garble redraws.
+        var size = winsize()
+        let rows = ioctl(1, TIOCGWINSZ, &size) == 0 && size.ws_row > 0 ? Int(size.ws_row) : 50
+        var lines = helpText.components(separatedBy: "\n")
+        if lines.count > rows {
+            lines = Array(lines.prefix(rows - 1)) + ["\u{1B}[2m... make the window taller to see the rest\u{1B}[0m"]
+        }
+        out("\u{1B}[H" + lines.joined(separator: "\u{1B}[K\r\n") + "\u{1B}[K\u{1B}[J")
+        return
+    }
     let bold = "\u{1B}[1m", dim = "\u{1B}[2m", reset = "\u{1B}[0m", green = "\u{1B}[32m"
 
     func bar(_ v: Double, width: Int = 32) -> String {
@@ -153,7 +220,7 @@ func render() {
         "",
         statusMessage.isEmpty ? "" : "  \u{1B}[33m\(statusMessage)\(reset)",
         "  \(dim)\(statsText)\(reset)",
-        "  \(dim)q quit   settings are saved automatically\(reset)",
+        "  \(dim)h help   q quit   settings are saved automatically\(reset)",
     ]
     out("\u{1B}[H" + lines.joined(separator: "\u{1B}[K\r\n") + "\u{1B}[K\u{1B}[J")
 }
