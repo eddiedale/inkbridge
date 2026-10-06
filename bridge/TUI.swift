@@ -6,6 +6,7 @@ var tui = false                 // panel is active (set in main)
 var switchRequested = false     // w pressed: main switches USB <-> Wi-Fi
 var statusMessage = ""          // shown in the panel, e.g. while switching
 var showHelp = false            // h: help screen instead of the panel
+var restartRequested = false    // d/t changed a grab: main restarts the stream
 var savedTermios = termios()
 var termiosSaved = false
 
@@ -96,6 +97,12 @@ func handleKeys(_ bytes: [UInt8]) -> Bool {
         case .char(UInt8(ascii: "p")):
             let steps = [0.0, 0.01, 0.02, 0.03, 0.05]
             settings.padding = steps.first { $0 > settings.padding + 0.001 } ?? 0
+        case .char(UInt8(ascii: "d")):
+            settings.drawOnTablet.toggle()
+            restartRequested = true
+        case .char(UInt8(ascii: "t")):
+            settings.touchOnTablet.toggle()
+            restartRequested = true
         case .char(UInt8(ascii: "w")):
             switchRequested = true
             continue
@@ -150,6 +157,15 @@ let helpText = """
 \u{1B}[1mpadding\u{1B}[0m  (p)
   A margin around the tablet edge that maps past the screen edge, so you
   reach the screen edges before the bezel. In % of the tablet's short side.
+
+\u{1B}[1mdraw on tablet\u{1B}[0m  (d)
+  Off: the tablet ignores the pen while inkbridge runs. On: the tablet sees
+  the pen too and draws with whatever page and tool are open there, while
+  the Mac draws as usual. Taps on the tablet's own buttons work as well.
+
+\u{1B}[1mtouch on tablet\u{1B}[0m  (t)
+  Off: fingers are ignored by the tablet, so a resting hand does not scroll
+  or zoom. On: touch works on the tablet as normal.
 
 \u{1B}[1mconnection\u{1B}[0m  (w)
   Switch between USB (lowest lag) and Wi-Fi. At start, the link that worked
@@ -216,6 +232,8 @@ func render() {
         "  \(bold)r\(reset)   rotation        \(settings.rotation)°  \(dim)\(rotationText)\(reset)",
         "  \(bold)a\(reset)   area map        \(areaText)",
         "  \(bold)p\(reset)   padding         \(Int((settings.padding * 100).rounded()))%  \(dim)margin at the tablet edge\(reset)",
+        "  \(bold)d\(reset)   draw on tablet  \(settings.drawOnTablet ? "on   \(dim)the tablet draws too, with its current tool\(reset)" : "off  \(dim)the pen only drives the Mac\(reset)")",
+        "  \(bold)t\(reset)   touch on tablet \(settings.touchOnTablet ? "on   \(dim)fingers work on the tablet\(reset)" : "off  \(dim)fingers are ignored by the tablet\(reset)")",
         "  \(bold)w\(reset)   connection      \(link)  \(dim)switch to \(link == "USB" ? "Wi-Fi" : "USB")\(reset)",
         "",
         statusMessage.isEmpty ? "" : "  \u{1B}[33m\(statusMessage)\(reset)",

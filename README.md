@@ -71,6 +71,8 @@ inkbridge   ● connected   USB 10.11.99.1
   r   rotation        90°  landscape, top edge right
   a   area map        fill screen  whole tablet, shapes stretch a little
   p   padding         2%  margin at the tablet edge
+  d   draw on tablet  off  the pen only drives the Mac
+  t   touch on tablet off  fingers are ignored by the tablet
   w   connection      USB  switch to Wi-Fi
 
   498 reports/s   lag p50 0.3 ms   p95 0.6 ms
@@ -92,6 +94,11 @@ inkbridge   ● connected   USB 10.11.99.1
 - **padding**: a margin around the tablet edge that maps just past the
   screen edge, so you reach the edges of the screen comfortably before the
   bezel. Default 2% of the tablet's short side (about 3 mm).
+- **draw on tablet**: on, the tablet sees the pen too and draws on whatever
+  page is open with its current tool, while the Mac draws as usual. Off, the
+  tablet ignores the pen while inkbridge runs.
+- **touch on tablet**: off by default so a resting hand does not scroll or
+  zoom the tablet; turn on to use touch on the tablet as normal.
 - **smoothing**: the pen reports pressure only ~38 times a second; smoothing
   removes the steps this would leave in tapered strokes.
 
@@ -157,7 +164,7 @@ noticeably lowers latency. It comes back on when the tablet reboots.
 | `--area fill\|keep\|crop` | `fill` | how the tablet maps onto the display (see area map above) |
 | `--device` | `event2` | pen input device on the tablet |
 | `--touch-device` | `event3` | touch input device, grabbed so gestures are ignored |
-| `--no-grab` | off | leave pen and touch working on the tablet as well |
+| `--no-grab` | off | turn on draw on tablet and touch on tablet |
 | `--plain` | off | print lines instead of the live panel |
 | `--stats` | off | in plain mode, print report rate and link lag once a second |
 | `--rate N` | `0` | cap motion events per second (0 = every report) |

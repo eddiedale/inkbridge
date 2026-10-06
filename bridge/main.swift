@@ -7,10 +7,11 @@
 //                   [--device event2] [--touch-device event3] [--no-grab]
 //                   [--plain] [--debug] [--stats] [--rate 0]
 //
-// Runs `evtest --grab` on the tablet through an SSH pty (line buffered output,
-// and the grab is released when SSH drops). The touch panel is grabbed too, so
-// finger gestures do not move the tablet UI while drawing; --no-grab releases
-// both.
+// Runs `evtest --grab` on the tablet through an SSH pty (line buffered output).
+// The grab keeps the tablet's own app from seeing the pen; the touch panel is
+// grabbed too, so finger gestures do not move the tablet UI while drawing.
+// "draw on tablet" (d) and "touch on tablet" (t) release them; --no-grab
+// releases both.
 //
 // In a terminal it shows a live panel where rotation, area map, pressure curve,
 // min/max pressure and smoothing can be changed with single keys; they
@@ -37,7 +38,6 @@ var host = usbHost
 var hostGiven = false
 var device = "event2"
 var touchDevice = "event3"
-var grab = true
 var plain = false
 var debug = false
 var stats = false
@@ -57,7 +57,9 @@ while let arg = args.next() {
         guard let a = args.next().flatMap(Area.init) else { print("--area takes fill, keep or crop"); exit(1) }
         settings.area = a
     case "--keep-aspect": settings.area = .keep   // older name
-    case "--no-grab": grab = false
+    case "--no-grab":
+        settings.drawOnTablet = true
+        settings.touchOnTablet = true
     case "--plain": plain = true
     case "--debug": debug = true
     case "--stats": stats = true
@@ -116,15 +118,27 @@ if !hostGiven && settings.useWifi != (host != usbHost) {
 
 /// The command run on the tablet. -tt gives evtest a pty so it line-buffers.
 /// Evtests on our devices left by earlier runs or connections are stopped
-/// first, as they would otherwise keep the grab and starve this one. The touch grab runs in the
-/// background of the same shell. Over Wi-Fi, power saving is turned off for
-/// lower latency (until the tablet reboots).
+/// first, as they would otherwise keep the grab and starve this one. Unless
+/// touch is left to the tablet, a second evtest grabs the touch panel in the
+/// background of the same shell. Without the pen grab the tablet draws too.
+/// Over Wi-Fi, power saving is turned off for lower latency (until the
+/// tablet reboots).
 func remoteCommand() -> String {
     var command = stopOurEvtests() + "; "
     if host != usbHost { command += "iw dev wlan0 set power_save off 2>/dev/null; " }
-    return command + (grab
-        ? "evtest --grab /dev/input/\(touchDevice) >/dev/null & T=$!; evtest --grab /dev/input/\(device); kill $T"
-        : "exec evtest /dev/input/\(device)")
+    let pen = "evtest \(settings.drawOnTablet ? "" : "--grab ")/dev/input/\(device)"
+    return command + (settings.touchOnTablet
+        ? "exec \(pen)"
+        : "evtest --grab /dev/input/\(touchDevice) >/dev/null & T=$!; \(pen); kill $T")
+}
+
+/// Restarts the stream so a changed grab setting takes effect.
+func restartStream() {
+    stopStream()
+    if !startStream() {
+        statusMessage = "Could not restart the stream"
+        quitRequested = true
+    }
 }
 
 var sshPID: pid_t = 0
@@ -274,6 +288,11 @@ loop: while !quitRequested {
             break
         }
         nextRender = 0
+        if restartRequested {
+            restartRequested = false
+            restartStream()
+            continue
+        }
         if switchRequested {
             switchRequested = false
             switchConnection()

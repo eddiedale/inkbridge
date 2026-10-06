@@ -14,6 +14,8 @@ struct Settings {
     var minPressure = 0.03    // raw pressure needed to start a stroke (0...1)
     var maxPressure = 0.8     // raw pressure that gives full output (0...1)
     var smoothing = true      // smooth the ~38 Hz pressure updates between reports
+    var drawOnTablet = false  // leave the pen ungrabbed, so the tablet draws as well
+    var touchOnTablet = false // leave touch ungrabbed, so fingers work on the tablet
     var useWifi = false       // connect over Wi-Fi at start (falls back to USB)
     var wifiHost = ""         // tablet's Wi-Fi address, found when switching from USB
 
@@ -31,6 +33,8 @@ struct Settings {
         if let v = d["minPressure"] as? Double { s.minPressure = v }
         if let v = d["maxPressure"] as? Double { s.maxPressure = v }
         if let v = d["smoothing"] as? Bool { s.smoothing = v }
+        if let v = d["drawOnTablet"] as? Bool { s.drawOnTablet = v }
+        if let v = d["touchOnTablet"] as? Bool { s.touchOnTablet = v }
         if let v = d["useWifi"] as? Bool { s.useWifi = v }
         if let v = d["wifiHost"] as? String { s.wifiHost = v }
         return s
@@ -41,7 +45,8 @@ struct Settings {
         func round2(_ v: Double) -> NSDecimalNumber { NSDecimalNumber(string: String(format: "%.2f", v)) }
         let d: [String: Any] = ["rotation": rotation, "area": area.rawValue, "padding": round2(padding), "curve": round2(curve),
                                 "minPressure": round2(minPressure), "maxPressure": round2(maxPressure),
-                                "smoothing": smoothing, "useWifi": useWifi, "wifiHost": wifiHost]
+                                "smoothing": smoothing, "drawOnTablet": drawOnTablet,
+                                "touchOnTablet": touchOnTablet, "useWifi": useWifi, "wifiHost": wifiHost]
         try? FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)
         if let data = try? JSONSerialization.data(withJSONObject: d, options: [.prettyPrinted, .sortedKeys]) {
             FileManager.default.createFile(atPath: Settings.path, contents: data)
