@@ -8,7 +8,8 @@ eraser end. Nothing is installed on the tablet.
 
 > Status: early, but usable for drawing. Developed and tested on a
 > reMarkable Pure (firmware 3.28) over USB with Photoshop on Apple Silicon.
-> Other models may work with different device names; see below.
+> Reported working on a reMarkable Paper Pro too. Other models may need
+> different device names; see below.
 
 ## What works
 
@@ -42,7 +43,7 @@ Known limits:
    which inkbridge uses by default.
 3. Build:
    ```
-   swiftc -O bridge/*.swift -o build/inkbridge
+   mkdir -p build && swiftc -O bridge/*.swift -o build/inkbridge
    ```
 4. Allow your terminal app to control the computer, so it can post pen
    events: System Settings > Privacy & Security > Device control and data
