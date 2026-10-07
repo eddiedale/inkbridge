@@ -165,16 +165,15 @@ noticeably lowers latency. It comes back on when the tablet reboots.
 
 | command | what it does |
 |---|---|
-| `make` | build inkbridge, and the first time offer to add the `inkbridge` command |
+| `make` | build inkbridge, and the first time offer to add the inkbridge link |
 | `make clean` | delete the built program |
-| `inkbridge` | start inkbridge (from any folder, once the command is added) |
+| `inkbridge` | start inkbridge from any folder, once linked |
 | `./inkbridge` | start inkbridge from the inkbridge folder, if you haven't linked it |
-| `inkbridge link` | add the `inkbridge` command (`--prefix DIR` puts it in `DIR/bin`) |
-| `inkbridge unlink` | remove the command; `make` will not add it back |
+| `inkbridge link` | add the inkbridge link, so `inkbridge` runs from any folder (`--prefix DIR` puts it in `DIR/bin`) |
+| `inkbridge unlink` | remove the link; `make` will not add it back |
 | `git pull` then `make` | update to the latest version |
 
-Before the command is added, use `./inkbridge link` from the inkbridge
-folder.
+Before it is linked, use `./inkbridge link` from the inkbridge folder.
 
 ### Options
 
