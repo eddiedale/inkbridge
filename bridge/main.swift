@@ -1,11 +1,11 @@
 // inkbridge: stream the reMarkable pen over SSH and post macOS tablet events.
 //
 // Usage:
-//   make                      (builds build/inkbridge)
-//   build/inkbridge [--host 10.11.99.1] [--rotate 0|90|180|270]
-//                   [--area fill|keep|crop]
-//                   [--device event2] [--touch-device event3] [--no-grab]
-//                   [--plain] [--debug] [--stats] [--rate 0]
+//   make                      (builds ./inkbridge; make run builds and starts it)
+//   ./inkbridge [--host 10.11.99.1] [--rotate 0|90|180|270]
+//               [--area fill|keep|crop]
+//               [--device event2] [--touch-device event3] [--no-grab]
+//               [--plain] [--debug] [--stats] [--rate 0]
 //
 // Runs `evtest --grab` on the tablet through an SSH pty (line buffered output).
 // The grab keeps the tablet's own app from seeing the pen; the touch panel is

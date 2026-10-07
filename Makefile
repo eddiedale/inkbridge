@@ -1,7 +1,9 @@
-build/inkbridge: bridge/*.swift
-	@mkdir -p build
-	swiftc -O bridge/*.swift -o build/inkbridge
+inkbridge: bridge/*.swift
+	swiftc -O bridge/*.swift -o inkbridge
 
-.PHONY: clean
+.PHONY: run clean
+run: inkbridge
+	./inkbridge
+
 clean:
-	rm -rf build
+	rm -f inkbridge

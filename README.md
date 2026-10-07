@@ -57,8 +57,10 @@ Known limits:
 In the `inkbridge` folder:
 
 ```
-build/inkbridge
+./inkbridge
 ```
+
+(`make run` does the same, building first if needed.)
 
 Hold the tablet in landscape with its top edge on the right. A live panel
 shows the pen state and pressure, and lets you tune settings while drawing:
@@ -154,7 +156,7 @@ once. Find the tablet's Wi-Fi address under Settings > Help > About on the
 tablet, then:
 
 ```
-build/inkbridge --host 192.168.1.23
+./inkbridge --host 192.168.1.23
 ```
 
 Over Wi-Fi, inkbridge turns off the tablet's Wi-Fi power saving, which
