@@ -70,7 +70,6 @@ Known limits:
 inkbridge
 ```
 
-
 Hold the tablet in landscape with its top edge on the right. A live panel
 shows the pen state and pressure, and lets you tune settings while drawing:
 
