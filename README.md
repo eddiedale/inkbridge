@@ -57,7 +57,7 @@ Known limits:
    is remembered.
 
    To update later, run `git pull` and `make` again in the same folder.
-   `inkbridge unlink` removes the command (and `make` will not add it back);
+   `inkbridge unlink` removes the link again (the next `make` asks again);
    `./inkbridge link` adds it any time. If linking needs admin rights on
    your Mac, use `sudo ./inkbridge link`, or
    `./inkbridge link --prefix ~/.local` if `~/.local/bin` is on your PATH.
@@ -170,7 +170,7 @@ noticeably lowers latency. It comes back on when the tablet reboots.
 | `inkbridge` | start inkbridge from any folder, once linked |
 | `./inkbridge` | start inkbridge from the inkbridge folder, if you haven't linked it |
 | `inkbridge link` | add the inkbridge link, so `inkbridge` runs from any folder (`--prefix DIR` puts it in `DIR/bin`) |
-| `inkbridge unlink` | remove the link; `make` will not add it back |
+| `inkbridge unlink` | remove the inkbridge link |
 | `git pull` then `make` | update to the latest version |
 
 Before it is linked, use `./inkbridge link` from the inkbridge folder.

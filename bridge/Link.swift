@@ -7,8 +7,8 @@ import Foundation
 /// Where each link made is noted, so unlink finds them all, whatever prefix
 /// was used and wherever the project folder has moved since.
 let linksFile = configDir + "/links"
-/// Present when the user said no to the command, or removed it with unlink,
-/// so `make` does not ask again or quietly add it back.
+/// Present when the user said no at `make`'s question, so it does not ask
+/// again. Unlink only removes the link; the next `make` asks again.
 let noLinkFile = configDir + "/no-link"
 
 /// Handles `link [--prefix DIR] [--from-make]` and `unlink`. Returns false
@@ -43,36 +43,34 @@ func runLinkCommand(_ args: [String]) -> Bool {
             }
         }
         try? fm.removeItem(atPath: linksFile)
-        fm.createFile(atPath: noLinkFile, contents: nil)
-        print(removed == 0 ? "No inkbridge command found."
-                           : "The inkbridge command is gone. `make` will not add it back; `./inkbridge link` does.")
+        print(removed == 0 ? "No inkbridge link found." : "The inkbridge link is removed.")
         return true
     }
 
     if fromMake {
         // Already pointing at this build: the rebuild is all there was to do.
         if recorded.contains(where: { destination($0) == target }) || destination(path) == target {
-            print("Updated: the inkbridge command now runs the new build.")
+            print("Updated: the inkbridge link now runs the new build.")
             return true
         }
         if fm.fileExists(atPath: noLinkFile) {
-            print("Built. Start it with ./inkbridge in this folder, or run ./inkbridge link to add the inkbridge command.")
+            print("Built. Start it with ./inkbridge in this folder, or run ./inkbridge link to add the inkbridge link.")
             return true
         }
         guard isatty(0) != 0 else {
-            print("Built. Run ./inkbridge link to add the inkbridge command.")
+            print("Built. Run ./inkbridge link to add the inkbridge link.")
             return true
         }
         if isOurLink(path), let old = destination(path) {
-            print("The inkbridge command runs another copy (\((old as NSString).deletingLastPathComponent)). "
+            print("The inkbridge link points to another copy (\((old as NSString).deletingLastPathComponent)). "
                   + "Point it to this one? [Y/n] ", terminator: "")
         } else {
-            print("Add an inkbridge command, so you can start it from any folder? [Y/n] ", terminator: "")
+            print("Add the inkbridge link, so you can start inkbridge from any folder? [Y/n] ", terminator: "")
         }
         let answer = (readLine() ?? "").trimmingCharacters(in: .whitespaces).lowercased()
         guard answer.isEmpty || answer.hasPrefix("y") else {
             fm.createFile(atPath: noLinkFile, contents: nil)
-            print("OK. Start it with ./inkbridge in this folder. Run ./inkbridge link any time to add the command.")
+            print("OK. Start it with ./inkbridge in this folder. Run ./inkbridge link any time to add the link.")
             return true
         }
     }
@@ -97,6 +95,6 @@ func runLinkCommand(_ args: [String]) -> Bool {
         try? (recorded.joined(separator: "\n") + "\n").write(toFile: linksFile, atomically: true, encoding: .utf8)
     }
     try? fm.removeItem(atPath: noLinkFile)
-    print("Linked: run inkbridge from any folder. (inkbridge unlink removes it.)")
+    print("Linked: start inkbridge from any folder. (inkbridge unlink removes the link.)")
     return true
 }
