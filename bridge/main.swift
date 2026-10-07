@@ -1,7 +1,7 @@
 // inkbridge: stream the reMarkable pen over SSH and post macOS tablet events.
 //
 // Usage:
-//   make                                     builds ./inkbridge and links it
+//   make                                     builds ./inkbridge, offers to link it
 //   inkbridge link [--prefix /usr/local]     adds the inkbridge command
 //   inkbridge unlink                         removes it again
 //   ./inkbridge [--host 10.11.99.1] [--rotate 0|90|180|270]

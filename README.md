@@ -51,15 +51,16 @@ Known limits:
    cd inkbridge
    make
    ```
-   `make` builds inkbridge and adds an `inkbridge` command you can run from
-   any folder (a link in `/usr/local/bin`). To update later, run `git pull`
-   and `make` again in the same folder. `inkbridge unlink` removes the
-   command again. If you move the folder, run `make` again from the new
-   place.
+   `make` builds inkbridge and asks whether to add an `inkbridge` command,
+   so you can start it from any folder (a link in `/usr/local/bin`). Say no
+   and you start it with `./inkbridge` in this folder instead; your answer
+   is remembered.
 
-   If linking needs admin rights on your Mac, `make` says so; then run
-   `sudo ./inkbridge link`, or `./inkbridge link --prefix ~/.local` if
-   `~/.local/bin` is on your PATH.
+   To update later, run `git pull` and `make` again in the same folder.
+   `inkbridge unlink` removes the command (and `make` will not add it back);
+   `./inkbridge link` adds it any time. If linking needs admin rights on
+   your Mac, use `sudo ./inkbridge link`, or
+   `./inkbridge link --prefix ~/.local` if `~/.local/bin` is on your PATH.
 4. Allow your terminal app to control the computer, so it can post pen
    events: System Settings > Privacy & Security > Device control and data
    access (called Accessibility on older macOS versions).
