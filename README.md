@@ -75,7 +75,11 @@ Hold the tablet in landscape with its top edge on the right. A live panel
 lets you tune settings while drawing:
 
 ```
-inkbridge   ● connected   USB 10.11.99.1
+  ╷╭╮╷╷╭ ╭╮ ╭─╮╷╶┬╮╭─╴╭─╴
+  ││╰┤├┴╮├┴╮├┬╯│ │││╶╮├╴
+  ╵╵ ╵╵ ╵╰─╯╵╰╴╵╶┴╯╰─╯╰─╴
+
+  ● connected   USB 10.11.99.1
 
   ← → pressure curve   1.5 firm          ▁▁▂▂▂▃▃▃▄▄▅▆▆▇▇█
   ↓ ↑ min pressure     3%                less does not draw

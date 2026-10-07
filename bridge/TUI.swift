@@ -9,14 +9,20 @@ var showHelp = false            // h: help screen instead of the panel
 var restartRequested = false    // d/t changed a grab: main restarts the stream
 var fullPanel = false           // --full: also show pen meters and link stats
 
-/// Key letters in orange on 256-colour terminals, yellow otherwise, and just
-/// bold when NO_COLOR is set.
+/// Key letters and the logo in signal blue on 256-colour terminals, plain blue
+/// otherwise, and just bold when NO_COLOR is set.
 let keyColor: String = {
     let env = ProcessInfo.processInfo.environment
     if env["NO_COLOR"] != nil { return "\u{1B}[1m" }
     let rich = (env["TERM"] ?? "").contains("256color") || !(env["COLORTERM"] ?? "").isEmpty
-    return rich ? "\u{1B}[1;38;5;208m" : "\u{1B}[1;33m"
+    return rich ? "\u{1B}[1;38;5;33m" : "\u{1B}[1;34m"
 }()
+
+let logo = [
+    "╷╭╮╷╷╭ ╭╮ ╭─╮╷╶┬╮╭─╴╭─╴",
+    "││╰┤├┴╮├┴╮├┬╯│ │││╶╮├╴ ",
+    "╵╵ ╵╵ ╵╰─╯╵╰╴╵╶┴╯╰─╯╰─╴",
+]
 var savedTermios = termios()
 var termiosSaved = false
 
@@ -229,7 +235,8 @@ func render() {
 
     func key(_ k: String) -> String { keyColor + k + reset }
 
-    var lines = ["\(bold)inkbridge\(reset)   \(green)●\(reset) connected   \(dim)\(link) \(host)\(reset)", ""]
+    var lines = logo.map { "  " + keyColor + $0 + reset }
+    lines += ["", "  \(green)●\(reset) connected   \(dim)\(link) \(host)\(reset)", ""]
     if fullPanel {
         lines += [
             "  pen          \(pen)",
