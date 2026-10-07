@@ -1,8 +1,9 @@
 // inkbridge: stream the reMarkable pen over SSH and post macOS tablet events.
 //
 // Usage:
-//   make                      (builds ./inkbridge; make run builds and starts it;
-//                              make link adds an inkbridge command)
+//   ./build                                  builds ./inkbridge
+//   ./inkbridge link [--prefix /usr/local]   adds an inkbridge command
+//   inkbridge unlink                         removes it again
 //   ./inkbridge [--host 10.11.99.1] [--rotate 0|90|180|270]
 //               [--area fill|keep|crop]
 //               [--device event2] [--touch-device event3] [--no-grab]
@@ -33,6 +34,8 @@
 import Foundation
 
 // MARK: Options
+
+if runLinkCommand(Array(CommandLine.arguments.dropFirst())) { exit(0) }
 
 let usbHost = "10.11.99.1"
 var host = usbHost
