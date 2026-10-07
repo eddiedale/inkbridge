@@ -41,15 +41,20 @@ Known limits:
    at the bottom of the GPLv3 Compliance section.
 2. Connect the tablet by USB. Every reMarkable is at `10.11.99.1` over USB,
    which inkbridge uses by default.
-3. Build:
+3. Download and build, in a terminal:
    ```
+   git clone https://github.com/eddiedale/inkbridge.git
+   cd inkbridge
    make
    ```
+   To update later, run `git pull` and `make` again in the same folder.
 4. Allow your terminal app to control the computer, so it can post pen
    events: System Settings > Privacy & Security > Device control and data
    access (called Accessibility on older macOS versions).
 
 ## Usage
+
+In the `inkbridge` folder:
 
 ```
 build/inkbridge
