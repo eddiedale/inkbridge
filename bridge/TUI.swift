@@ -7,6 +7,16 @@ var switchRequested = false     // w pressed: main switches USB <-> Wi-Fi
 var statusMessage = ""          // shown in the panel, e.g. while switching
 var showHelp = false            // h: help screen instead of the panel
 var restartRequested = false    // d/t changed a grab: main restarts the stream
+var fullPanel = false           // --full: also show pen meters and link stats
+
+/// Key letters in orange on 256-colour terminals, yellow otherwise, and just
+/// bold when NO_COLOR is set.
+let keyColor: String = {
+    let env = ProcessInfo.processInfo.environment
+    if env["NO_COLOR"] != nil { return "\u{1B}[1m" }
+    let rich = (env["TERM"] ?? "").contains("256color") || !(env["COLORTERM"] ?? "").isEmpty
+    return rich ? "\u{1B}[1;38;5;208m" : "\u{1B}[1;33m"
+}()
 var savedTermios = termios()
 var termiosSaved = false
 
@@ -120,7 +130,7 @@ func handleKeys(_ bytes: [UInt8]) -> Bool {
 let helpText = """
 \u{1B}[1minkbridge help\u{1B}[0m   \u{1B}[2many key closes this\u{1B}[0m
 
-\u{1B}[1mpen / pressure / raw\u{1B}[0m
+\u{1B}[1mpen / pressure / raw\u{1B}[0m  (inkbridge --full)
   What the pen is doing right now. "raw" is the pressure the tablet sends;
   "pressure" is what Photoshop receives after the settings below.
 
@@ -218,27 +228,32 @@ func render() {
         ? String(format: "%d reports/s   lag p50 %.1f ms   p95 %.1f ms", linkStats.reports, linkStats.p50, linkStats.p95)
         : "waiting for pen data"
 
-    let lines = [
-        "\(bold)inkbridge\(reset)   \(green)●\(reset) connected   \(dim)\(link) \(host)\(reset)",
+    func key(_ k: String) -> String { keyColor + k + reset }
+
+    var lines = ["\(bold)inkbridge\(reset)   \(green)●\(reset) connected   \(dim)\(link) \(host)\(reset)", ""]
+    if fullPanel {
+        lines += [
+            "  pen          \(pen)",
+            "  pressure     \(bar(pressureOut)) \(String(format: "%.2f", pressureOut))",
+            "  \(dim)raw          \(reset)\(bar(rawPressure)) \(dim)\(String(format: "%.2f", rawPressure))\(reset)",
+            "",
+        ]
+    }
+    lines += [
+        "  \(key("← →")) pressure curve  \(String(format: "%.1f", settings.curve)) \(feel)   \(dim)\(curveGraph)\(reset)",
+        "  \(key("↓ ↑")) min pressure    \(Int((settings.minPressure * 100).rounded()))%  \(dim)less does not draw\(reset)",
+        "  \(key("⇧↓↑")) max pressure    \(Int((settings.maxPressure * 100).rounded()))%  \(dim)more is full pressure\(reset)",
+        "  \(key("s"))   smoothing       \(settings.smoothing ? "on" : "off")",
+        "  \(key("r"))   rotation        \(settings.rotation)°  \(dim)\(rotationText)\(reset)",
+        "  \(key("a"))   area map        \(areaText)",
+        "  \(key("p"))   padding         \(Int((settings.padding * 100).rounded()))%  \(dim)margin at the tablet edge\(reset)",
+        "  \(key("d"))   draw on tablet  \(settings.drawOnTablet ? "on   \(dim)the tablet draws too, with its current tool\(reset)" : "off  \(dim)the pen only drives the Mac\(reset)")",
+        "  \(key("t"))   touch on tablet \(settings.touchOnTablet ? "on   \(dim)fingers work on the tablet\(reset)" : "off  \(dim)fingers are ignored by the tablet\(reset)")",
+        "  \(key("w"))   connection      \(link)  \(dim)switch to \(link == "USB" ? "Wi-Fi" : "USB")\(reset)",
         "",
-        "  pen          \(pen)",
-        "  pressure     \(bar(pressureOut)) \(String(format: "%.2f", pressureOut))",
-        "  \(dim)raw          \(reset)\(bar(rawPressure)) \(dim)\(String(format: "%.2f", rawPressure))\(reset)",
-        "",
-        "  \(bold)← →\(reset) pressure curve  \(String(format: "%.1f", settings.curve)) \(feel)   \(dim)\(curveGraph)\(reset)",
-        "  \(bold)↓ ↑\(reset) min pressure    \(Int((settings.minPressure * 100).rounded()))%  \(dim)less does not draw\(reset)",
-        "  \(bold)⇧↓↑\(reset) max pressure    \(Int((settings.maxPressure * 100).rounded()))%  \(dim)more is full pressure\(reset)",
-        "  \(bold)s\(reset)   smoothing       \(settings.smoothing ? "on" : "off")",
-        "  \(bold)r\(reset)   rotation        \(settings.rotation)°  \(dim)\(rotationText)\(reset)",
-        "  \(bold)a\(reset)   area map        \(areaText)",
-        "  \(bold)p\(reset)   padding         \(Int((settings.padding * 100).rounded()))%  \(dim)margin at the tablet edge\(reset)",
-        "  \(bold)d\(reset)   draw on tablet  \(settings.drawOnTablet ? "on   \(dim)the tablet draws too, with its current tool\(reset)" : "off  \(dim)the pen only drives the Mac\(reset)")",
-        "  \(bold)t\(reset)   touch on tablet \(settings.touchOnTablet ? "on   \(dim)fingers work on the tablet\(reset)" : "off  \(dim)fingers are ignored by the tablet\(reset)")",
-        "  \(bold)w\(reset)   connection      \(link)  \(dim)switch to \(link == "USB" ? "Wi-Fi" : "USB")\(reset)",
-        "",
-        statusMessage.isEmpty ? "" : "  \u{1B}[33m\(statusMessage)\(reset)",
-        "  \(dim)\(statsText)\(reset)",
-        "  \(dim)h help   q quit   settings are saved automatically\(reset)",
     ]
+    if !statusMessage.isEmpty { lines.append("  \u{1B}[33m\(statusMessage)\(reset)") }
+    if fullPanel { lines.append("  \(dim)\(statsText)\(reset)") }
+    lines.append("  \(key("h"))\(dim) help   \(reset)\(key("q"))\(dim) quit   settings are saved automatically\(reset)")
     out("\u{1B}[H" + lines.joined(separator: "\u{1B}[K\r\n") + "\u{1B}[K\u{1B}[J")
 }

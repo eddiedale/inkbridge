@@ -72,14 +72,10 @@ inkbridge
 ```
 
 Hold the tablet in landscape with its top edge on the right. A live panel
-shows the pen state and pressure, and lets you tune settings while drawing:
+lets you tune settings while drawing:
 
 ```
 inkbridge   ● connected   USB 10.11.99.1
-
-  pen          drawing
-  pressure     ██████████░░░░░░░░░░░░░░░░░░░░░░ 0.33
-  raw          ████████████████░░░░░░░░░░░░░░░░ 0.51
 
   ← → pressure curve  1.5 firm   ▁▁▂▂▂▃▃▃▄▄▅▆▆▇▇█
   ↓ ↑ min pressure    3%  less does not draw
@@ -92,9 +88,12 @@ inkbridge   ● connected   USB 10.11.99.1
   t   touch on tablet off  fingers are ignored by the tablet
   w   connection      USB  switch to Wi-Fi
 
-  498 reports/s   lag p50 0.3 ms   p95 0.6 ms
   h help   q quit   settings are saved automatically
 ```
+
+`inkbridge --full` also shows live pen meters (state, output and raw
+pressure) at the top, handy while tuning the pressure settings, and the
+report rate and link lag at the bottom.
 
 | setting | key | default | what it does |
 |---|---|---|---|
@@ -186,6 +185,7 @@ Before it is linked, use `./inkbridge link` from the inkbridge folder.
 | `--device` | `event2` | pen input device on the tablet |
 | `--touch-device` | `event3` | touch input device, grabbed so gestures are ignored |
 | `--no-grab` | off | turn on draw on tablet and touch on tablet |
+| `--full` | off | add pen meters and link stats to the panel |
 | `--plain` | off | print lines instead of the live panel |
 | `--stats` | off | in plain mode, print report rate and link lag once a second |
 | `--rate N` | `0` | cap motion events per second (0 = every report) |

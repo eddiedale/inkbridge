@@ -7,7 +7,7 @@
 //   ./inkbridge [--host 10.11.99.1] [--rotate 0|90|180|270]
 //               [--area fill|keep|crop]
 //               [--device event2] [--touch-device event3] [--no-grab]
-//               [--plain] [--debug] [--stats] [--rate 0]
+//               [--full] [--plain] [--debug] [--stats] [--rate 0]
 //
 // Runs `evtest --grab` on the tablet through an SSH pty (line buffered output).
 // The grab keeps the tablet's own app from seeing the pen; the touch panel is
@@ -18,7 +18,8 @@
 // In a terminal it shows a live panel where rotation, area map, pressure curve,
 // min/max pressure and smoothing can be changed with single keys; they
 // are saved to ~/.config/inkbridge/settings.json. --rotate and --area
-// override the saved values. --plain (or --debug) prints lines instead.
+// override the saved values. --full adds pen meters and link stats to the
+// panel. --plain (or --debug) prints lines instead.
 //
 // USB is the default. Over Wi-Fi, press w in the panel (it enables SSH over
 // Wi-Fi on the tablet and finds its address while on USB), or pass --host.
@@ -65,6 +66,7 @@ while let arg = args.next() {
         settings.drawOnTablet = true
         settings.touchOnTablet = true
     case "--plain": plain = true
+    case "--full": fullPanel = true
     case "--debug": debug = true
     case "--stats": stats = true
     case "--rate":
