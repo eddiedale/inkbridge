@@ -166,7 +166,6 @@ noticeably lowers latency. It comes back on when the tablet reboots.
 | command | what it does |
 |---|---|
 | `make` | build inkbridge, and the first time offer to add the `inkbridge` command |
-| `make build` | same as `make` |
 | `make clean` | delete the built program |
 | `inkbridge` | start inkbridge (from any folder, once the command is added) |
 | `./inkbridge` | start inkbridge from the inkbridge folder, without the command |
