@@ -8,7 +8,7 @@ enum Area: String { case fill, keep, crop }
 
 struct Settings {
     var rotation = 90         // how far the tablet is turned clockwise from portrait
-    var area = Area.fill      // how the tablet maps onto the display (see Mapping)
+    var area = Area.crop      // how the tablet maps onto the display (see Mapping)
     var padding = 0.02        // margin around the tablet edge, fraction of its short side
     var curve = 1.5           // pressure exponent: below 1 is soft, above 1 is firm
     var minPressure = 0.03    // raw pressure needed to start a stroke (0...1)

@@ -86,7 +86,7 @@ inkbridge   ● connected   USB 10.11.99.1
   ⇧↓↑ max pressure    80%  more is full pressure
   s   smoothing       on
   r   rotation        90°  landscape, top edge right
-  a   area map        fill screen  whole tablet, shapes stretch a little
+  a   area map        crop to screen  middle 73% of tablet height
   p   padding         2%  margin at the tablet edge
   d   draw on tablet  off  the pen only drives the Mac
   t   touch on tablet off  fingers are ignored by the tablet
@@ -96,28 +96,18 @@ inkbridge   ● connected   USB 10.11.99.1
   h help   q quit   settings are saved automatically
 ```
 
-- **pressure curve**: below 1 is soft (light strokes get heavier), above 1
-  is firm. Default 1.5.
-- **min pressure**: how much pressure starts a stroke, so a resting pen
-  leaves no ink. Default 3%.
-- **max pressure**: how hard you need to press for full output, so you reach
-  the thickest stroke without pushing the pen to its limit. Default 80%.
-- **area map**: how the tablet maps onto your screen. *fill screen* uses the
-  whole tablet and stretches shapes a little to fit. *keep proportions* uses
-  the whole tablet with bars on the screen. *crop to screen* uses a centred
-  part of the tablet in your screen's shape (in landscape on a 16:9 screen,
-  the middle 76% of its height), so the full screen is reachable and shapes
-  stay true.
-- **padding**: a margin around the tablet edge that maps just past the
-  screen edge, so you reach the edges of the screen comfortably before the
-  bezel. Default 2% of the tablet's short side (about 3 mm).
-- **draw on tablet**: on, the tablet sees the pen too and draws on whatever
-  page is open with its current tool, while the Mac draws as usual. Off, the
-  tablet ignores the pen while inkbridge runs.
-- **touch on tablet**: off by default so a resting hand does not scroll or
-  zoom the tablet; turn on to use touch on the tablet as normal.
-- **smoothing**: the pen reports pressure only ~38 times a second; smoothing
-  removes the steps this would leave in tapered strokes.
+| setting | key | default | what it does |
+|---|---|---|---|
+| pressure curve | ← → | 1.5 (firm) | below 1 is soft (light strokes get heavier), above 1 is firm |
+| min pressure | ↓ ↑ | 3% | pressure below this does not draw, so a resting pen leaves no ink |
+| max pressure | Shift ↓ ↑ | 80% | pressure from this point is full, so you reach the thickest stroke without pushing hard |
+| smoothing | s | on | the pen reports pressure only ~38 times a second; smoothing removes the steps this leaves in tapered strokes, at about 10 ms of pressure delay |
+| rotation | r | 90° | how the tablet is held; 90° is landscape with its top edge on the right |
+| area map | a | crop to screen | *crop to screen*: a centred part of the tablet in your screen's shape, so shapes stay true and the whole screen is reachable (on a 16:9 screen, the middle ~73% of the tablet's height). *fill screen*: the whole tablet, shapes stretch a little. *keep proportions*: the whole tablet, with bars on the screen |
+| padding | p | 2% | a margin around the tablet edge that maps just past the screen edge, so you reach the screen edges before the bezel (2% is about 3 mm) |
+| draw on tablet | d | off | on: the tablet sees the pen too and draws on the open page with its current tool |
+| touch on tablet | t | off | on: fingers work on the tablet; off keeps a resting hand from scrolling or zooming it |
+| connection | w | USB | switch between USB (lowest lag) and Wi-Fi; see [Wi-Fi](#wi-fi) |
 
 Press `h` in the panel for a help screen explaining each setting. Settings
 are saved to `~/.config/inkbridge/settings.json`. Press `q` to quit.
@@ -194,7 +184,7 @@ folder.
 |---|---|---|
 | `--host` | `10.11.99.1` | tablet address |
 | `--rotate 0\|90\|180\|270` | `90` | how far the tablet is turned clockwise from portrait |
-| `--area fill\|keep\|crop` | `fill` | how the tablet maps onto the display (see area map above) |
+| `--area fill\|keep\|crop` | `crop` | how the tablet maps onto the display (see area map above) |
 | `--device` | `event2` | pen input device on the tablet |
 | `--touch-device` | `event3` | touch input device, grabbed so gestures are ignored |
 | `--no-grab` | off | turn on draw on tablet and touch on tablet |
