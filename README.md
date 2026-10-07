@@ -171,6 +171,22 @@ tablet, then:
 Over Wi-Fi, inkbridge turns off the tablet's Wi-Fi power saving, which
 noticeably lowers latency. It comes back on when the tablet reboots.
 
+### Commands
+
+| command | what it does |
+|---|---|
+| `make` | build inkbridge, and the first time offer to add the `inkbridge` command |
+| `make build` | same as `make` |
+| `make clean` | delete the built program |
+| `inkbridge` | start inkbridge (from any folder, once the command is added) |
+| `./inkbridge` | start inkbridge from the inkbridge folder, without the command |
+| `inkbridge link` | add the `inkbridge` command (`--prefix DIR` puts it in `DIR/bin`) |
+| `inkbridge unlink` | remove the command; `make` will not add it back |
+| `git pull` then `make` | update to the latest version |
+
+Before the command is added, use `./inkbridge link` from the inkbridge
+folder.
+
 ### Options
 
 
