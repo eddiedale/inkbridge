@@ -48,19 +48,24 @@ Known limits:
    make
    ```
    To update later, run `git pull` and `make` again in the same folder.
+
+   Optional: `make install` adds an `inkbridge` command you can run from any
+   folder (a link in `/usr/local/bin` to the built program, so later builds
+   are picked up automatically; `make uninstall` removes it). If that folder
+   needs admin rights, use `sudo make install`, or
+   `make install PREFIX=~/.local` if `~/.local/bin` is on your PATH.
 4. Allow your terminal app to control the computer, so it can post pen
    events: System Settings > Privacy & Security > Device control and data
    access (called Accessibility on older macOS versions).
 
 ## Usage
 
-In the `inkbridge` folder:
-
 ```
-./inkbridge
+inkbridge
 ```
 
-(`make run` does the same, building first if needed.)
+That is after `make install`; otherwise run `./inkbridge` (or `make run`,
+which builds first if needed) in the `inkbridge` folder.
 
 Hold the tablet in landscape with its top edge on the right. A live panel
 shows the pen state and pressure, and lets you tune settings while drawing:
