@@ -49,17 +49,17 @@ Known limits:
    ```
    git clone https://github.com/eddiedale/inkbridge.git
    cd inkbridge
-   ./build
+   make
    ```
-   To update later, run `git pull` and `./build` again in the same folder.
+   `make` builds inkbridge and adds an `inkbridge` command you can run from
+   any folder (a link in `/usr/local/bin`). To update later, run `git pull`
+   and `make` again in the same folder. `inkbridge unlink` removes the
+   command again. If you move the folder, run `make` again from the new
+   place.
 
-   Optional: `./inkbridge link` adds an `inkbridge` command you can run from
-   any folder (a link in `/usr/local/bin` to the built program, so later
-   builds are picked up automatically). If that folder needs admin rights,
-   use `sudo ./inkbridge link`, or `./inkbridge link --prefix ~/.local` if
-   `~/.local/bin` is on your PATH. `inkbridge unlink` removes every link it
-   made, wherever they went. If you move the folder, run `./inkbridge link`
-   again from the new place.
+   If linking needs admin rights on your Mac, `make` says so; then run
+   `sudo ./inkbridge link`, or `./inkbridge link --prefix ~/.local` if
+   `~/.local/bin` is on your PATH.
 4. Allow your terminal app to control the computer, so it can post pen
    events: System Settings > Privacy & Security > Device control and data
    access (called Accessibility on older macOS versions).
@@ -70,8 +70,6 @@ Known limits:
 inkbridge
 ```
 
-That is after `./inkbridge link`; otherwise run `./inkbridge` in the
-`inkbridge` folder.
 
 Hold the tablet in landscape with its top edge on the right. A live panel
 shows the pen state and pressure, and lets you tune settings while drawing:

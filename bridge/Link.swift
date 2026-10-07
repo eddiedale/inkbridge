@@ -24,8 +24,12 @@ func runLinkCommand(_ args: [String]) -> Bool {
     }
 
     if command == "link" {
-        // A link rather than a copy, so a later ./build updates the command too.
+        // A link rather than a copy, so a later `make` updates the command too.
         let target = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().path
+        if (try? fm.destinationOfSymbolicLink(atPath: path)) == target {
+            print("The inkbridge command is ready (\(path)).")
+            return true
+        }
         if fm.fileExists(atPath: path) || isOurLink(path) {
             guard isOurLink(path) else {
                 print("\(path) exists and is not an inkbridge link; leaving it alone.")

@@ -1,3 +1,0 @@
-#!/bin/sh
-# Builds ./inkbridge from the Swift sources. Run it again after `git pull`.
-cd "$(dirname "$0")" && swiftc -O bridge/*.swift -o inkbridge && echo "Built ./inkbridge"
