@@ -215,13 +215,12 @@ func render() {
 
     let areaText: String
     switch settings.area {
-    case .fill: areaText = "fill screen  \(dim)whole tablet, shapes stretch a little\(reset)"
-    case .keep: areaText = "keep proportions  \(dim)whole tablet, bars on screen\(reset)"
+    case .fill: areaText = "whole tablet, shapes stretch a little"
+    case .keep: areaText = "whole tablet, bars on screen"
     case .crop:
         let r = mapping.region
-        let used = r.width < r.height ? "middle \(Int((r.width * 100).rounded()))% of tablet width"
+        areaText = r.width < r.height ? "middle \(Int((r.width * 100).rounded()))% of tablet width"
                                       : "middle \(Int((r.height * 100).rounded()))% of tablet height"
-        areaText = "crop to screen  \(dim)\(used)\(reset)"
     }
     let fresh = Date().timeIntervalSince1970 - linkStats.updated < 2
     let statsText = fresh
@@ -239,19 +238,29 @@ func render() {
             "",
         ]
     }
-    lines += [
-        "  \(key("← →")) pressure curve  \(String(format: "%.1f", settings.curve)) \(feel)   \(dim)\(curveGraph)\(reset)",
-        "  \(key("↓ ↑")) min pressure    \(Int((settings.minPressure * 100).rounded()))%  \(dim)less does not draw\(reset)",
-        "  \(key("⇧↓↑")) max pressure    \(Int((settings.maxPressure * 100).rounded()))%  \(dim)more is full pressure\(reset)",
-        "  \(key("s"))   smoothing       \(settings.smoothing ? "on" : "off")",
-        "  \(key("r"))   rotation        \(settings.rotation)°  \(dim)\(rotationText)\(reset)",
-        "  \(key("a"))   area map        \(areaText)",
-        "  \(key("p"))   padding         \(Int((settings.padding * 100).rounded()))%  \(dim)margin at the tablet edge\(reset)",
-        "  \(key("d"))   draw on tablet  \(settings.drawOnTablet ? "on   \(dim)the tablet draws too, with its current tool\(reset)" : "off  \(dim)the pen only drives the Mac\(reset)")",
-        "  \(key("t"))   touch on tablet \(settings.touchOnTablet ? "on   \(dim)fingers work on the tablet\(reset)" : "off  \(dim)fingers are ignored by the tablet\(reset)")",
-        "  \(key("w"))   connection      \(link)  \(dim)switch to \(link == "USB" ? "Wi-Fi" : "USB")\(reset)",
-        "",
+    // Settings as aligned columns: key, name, value, description.
+    let areaValue = ["fill": "fill screen", "keep": "keep proportions", "crop": "crop to screen"][settings.area.rawValue]!
+    let rows: [(String, String, String, String)] = [
+        ("← →", "pressure curve", String(format: "%.1f %@", settings.curve, feel), curveGraph),
+        ("↓ ↑", "min pressure", "\(Int((settings.minPressure * 100).rounded()))%", "less does not draw"),
+        ("⇧↓↑", "max pressure", "\(Int((settings.maxPressure * 100).rounded()))%", "more is full pressure"),
+        ("s", "smoothing", settings.smoothing ? "on" : "off", "evens out steps in pressure"),
+        ("r", "rotation", "\(settings.rotation)°", rotationText),
+        ("a", "area map", areaValue, areaText),
+        ("p", "padding", "\(Int((settings.padding * 100).rounded()))%", "margin at the tablet edge"),
+        ("d", "draw on tablet", settings.drawOnTablet ? "on" : "off",
+         settings.drawOnTablet ? "the tablet draws too, with its current tool" : "the pen only drives the Mac"),
+        ("t", "touch on tablet", settings.touchOnTablet ? "on" : "off",
+         settings.touchOnTablet ? "fingers work on the tablet" : "fingers are ignored by the tablet"),
+        ("w", "connection", link, "switch to \(link == "USB" ? "Wi-Fi" : "USB")"),
     ]
+    func pad(_ s: String, _ width: Int) -> String { s + String(repeating: " ", count: max(0, width - s.count)) }
+    let nameWidth = rows.map { $0.1.count }.max()! + 2
+    // Wide enough for the longest value any setting can take ("keep
+    // proportions"), so descriptions do not shift while cycling.
+    let valueWidth = max(rows.map { $0.2.count }.max()!, "keep proportions".count) + 2
+    lines += rows.map { "  " + key(pad($0.0, 4)) + pad($0.1, nameWidth) + pad($0.2, valueWidth) + dim + $0.3 + reset }
+    lines.append("")
     if !statusMessage.isEmpty { lines.append("  \u{1B}[33m\(statusMessage)\(reset)") }
     if fullPanel { lines.append("  \(dim)\(statsText)\(reset)") }
     lines.append("  \(key("h"))\(dim) help   \(reset)\(key("q"))\(dim) quit   settings are saved automatically\(reset)")

@@ -77,16 +77,16 @@ lets you tune settings while drawing:
 ```
 inkbridge   ● connected   USB 10.11.99.1
 
-  ← → pressure curve  1.5 firm   ▁▁▂▂▂▃▃▃▄▄▅▆▆▇▇█
-  ↓ ↑ min pressure    3%  less does not draw
-  ⇧↓↑ max pressure    80%  more is full pressure
-  s   smoothing       on
-  r   rotation        90°  landscape, top edge right
-  a   area map        crop to screen  middle 73% of tablet height
-  p   padding         2%  margin at the tablet edge
-  d   draw on tablet  off  the pen only drives the Mac
-  t   touch on tablet off  fingers are ignored by the tablet
-  w   connection      USB  switch to Wi-Fi
+  ← → pressure curve   1.5 firm          ▁▁▂▂▂▃▃▃▄▄▅▆▆▇▇█
+  ↓ ↑ min pressure     3%                less does not draw
+  ⇧↓↑ max pressure     80%               more is full pressure
+  s   smoothing        on                evens out steps in pressure
+  r   rotation         90°               landscape, top edge right
+  a   area map         crop to screen    middle 73% of tablet height
+  p   padding          2%                margin at the tablet edge
+  d   draw on tablet   off               the pen only drives the Mac
+  t   touch on tablet  off               fingers are ignored by the tablet
+  w   connection       USB               switch to Wi-Fi
 
   h help   q quit   settings are saved automatically
 ```
