@@ -2,6 +2,10 @@
 
 Use a reMarkable as a pressure-sensitive drawing tablet on macOS.
 
+https://github.com/user-attachments/assets/3615dec1-4eb6-47ed-9bff-25e82229a9c6
+
+(Early video shown above. Might not use correct build command as we go along. Read below on how to use the tool)
+
 inkbridge runs on the Mac, reads the pen over SSH and posts native macOS
 tablet events, so Photoshop and other apps see pressure, tilt, hover and the
 eraser end. Nothing is installed on the tablet.
