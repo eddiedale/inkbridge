@@ -43,7 +43,7 @@ Known limits:
    which inkbridge uses by default.
 3. Build:
    ```
-   mkdir -p build && swiftc -O bridge/*.swift -o build/inkbridge
+   make
    ```
 4. Allow your terminal app to control the computer, so it can post pen
    events: System Settings > Privacy & Security > Device control and data
