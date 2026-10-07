@@ -51,9 +51,10 @@ Known limits:
 
    Optional: `make link` adds an `inkbridge` command you can run from any
    folder (a link in `/usr/local/bin` to the built program, so later builds
-   are picked up automatically; `make unlink` removes it). If that folder
-   needs admin rights, use `sudo make link`, or
-   `make link PREFIX=~/.local` if `~/.local/bin` is on your PATH.
+   are picked up automatically). If that folder needs admin rights, use
+   `sudo make link`, or `make link PREFIX=~/.local` if `~/.local/bin` is on
+   your PATH. `make unlink` removes every link it made, wherever they went.
+   If you move the folder, run `make link` again from the new place.
 4. Allow your terminal app to control the computer, so it can post pen
    events: System Settings > Privacy & Security > Device control and data
    access (called Accessibility on older macOS versions).
