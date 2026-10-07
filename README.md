@@ -199,6 +199,31 @@ and pass them with `--device` and `--touch-device`. The axis ranges in
 `bridge/Pen.swift` are the Pure's; `tools/recon.sh` collects them for
 another model. Reports from other devices are welcome.
 
+### Linking by hand
+
+You only need this if `make` could not add the `inkbridge` command, or you
+want it somewhere other than `/usr/local/bin`. The command is just a link to
+the program in your inkbridge folder, placed in any folder on your PATH
+(`echo $PATH` lists them).
+
+From the inkbridge folder:
+
+```
+ln -sf "$PWD/inkbridge" /usr/local/bin/inkbridge
+```
+
+and to remove it:
+
+```
+rm /usr/local/bin/inkbridge
+```
+
+Use `sudo` in front of either if that folder needs admin rights, and swap
+`/usr/local/bin` for your folder of choice. `inkbridge link --prefix DIR`
+does the same for `DIR/bin` and remembers it, so `inkbridge unlink` can
+remove it later; links made by hand outside `/usr/local/bin` it does not
+know about.
+
 ## How it works
 
 inkbridge opens SSH to the tablet and runs its built-in `evtest --grab` on the
