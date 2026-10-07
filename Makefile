@@ -3,17 +3,17 @@ PREFIX ?= /usr/local
 inkbridge: bridge/*.swift
 	swiftc -O bridge/*.swift -o inkbridge
 
-.PHONY: run install uninstall clean
+.PHONY: run link unlink clean
 run: inkbridge
 	./inkbridge
 
-# Links rather than copies, so a later `make` updates the installed command.
-install: inkbridge
+# A link rather than a copy, so a later `make` updates the command too.
+link: inkbridge
 	@mkdir -p $(PREFIX)/bin
 	ln -sf "$(CURDIR)/inkbridge" $(PREFIX)/bin/inkbridge
-	@echo "Installed: run inkbridge from anywhere."
+	@echo "Linked: run inkbridge from anywhere."
 
-uninstall:
+unlink:
 	rm -f $(PREFIX)/bin/inkbridge
 
 clean:
