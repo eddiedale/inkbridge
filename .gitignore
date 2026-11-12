@@ -1,4 +1,7 @@
 /inkbridge
+/inkbridge-ble
+/inkbridge-ble-server
+/inkbridge-ble-pen
 .DS_Store
 claude.md
 CLAUDE.md

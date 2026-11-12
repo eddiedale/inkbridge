@@ -186,6 +186,7 @@ let helpText = """
 \u{1B}[1mconnection\u{1B}[0m  (w)
   Switch between USB (lowest lag) and Wi-Fi. At start, the link that worked
   last is tried first, then the other.
+  Bluetooth reconnects automatically with an SSH key when the tablet returns.
 """
 
 func render() {
@@ -200,14 +201,21 @@ func render() {
         out("\u{1B}[H" + lines.joined(separator: "\u{1B}[K\r\n") + "\u{1B}[K\u{1B}[J")
         return
     }
-    let bold = "\u{1B}[1m", dim = "\u{1B}[2m", reset = "\u{1B}[0m", green = "\u{1B}[32m"
+    let dim = "\u{1B}[2m", reset = "\u{1B}[0m", green = "\u{1B}[32m", yellow = "\u{1B}[33m"
 
     func bar(_ v: Double, width: Int = 32) -> String {
         let n = Int((max(0, min(1, v)) * Double(width)).rounded())
         return String(repeating: "█", count: n) + dim + String(repeating: "░", count: width - n) + reset
     }
 
-    let link = host == "10.11.99.1" ? "USB" : "Wi-Fi"
+    let link = connectionName
+    let endpoint = bluetooth ? link : "\(link) \(host)"
+    let linkStatus: String
+    if bluetooth && !bluetoothStreamReady {
+        linkStatus = "\(yellow)●\(reset) \(bluetoothHasStreamed ? "reconnecting" : "connecting")"
+    } else {
+        linkStatus = "\(green)●\(reset) connected"
+    }
     let pen = !raw.inRange ? "\(dim)out of range\(reset)"
         : raw.rubber ? (postedContact ? "erasing" : "eraser hovering")
         : (postedContact ? "drawing" : "hovering")
@@ -236,7 +244,7 @@ func render() {
     func key(_ k: String) -> String { keyColor + k + reset }
 
     var lines = logo.map { "  " + keyColor + $0 + reset }
-    lines += ["", "  \(green)●\(reset) connected   \(dim)\(link) \(host)\(reset)", ""]
+    lines += ["", "  \(linkStatus)   \(dim)\(endpoint)\(reset)", ""]
     if fullPanel {
         lines += [
             "  pen          \(pen)",
@@ -259,7 +267,7 @@ func render() {
          settings.drawOnTablet ? "the tablet draws too, with its current tool" : "the pen only drives the Mac"),
         ("t", "touch on tablet", settings.touchOnTablet ? "on" : "off",
          settings.touchOnTablet ? "fingers work on the tablet" : "fingers are ignored by the tablet"),
-        ("w", "connection", link, "switch to \(link == "USB" ? "Wi-Fi" : "USB")"),
+        (bluetooth ? " " : "w", "connection", link, bluetooth ? "" : "switch to \(link == "USB" ? "Wi-Fi" : "USB")"),
     ]
     func pad(_ s: String, _ width: Int) -> String { s + String(repeating: " ", count: max(0, width - s.count)) }
     let nameWidth = rows.map { $0.1.count }.max()! + 2
@@ -269,6 +277,7 @@ func render() {
     lines += rows.map { "  " + key(pad($0.0, 4)) + pad($0.1, nameWidth) + pad($0.2, valueWidth) + dim + $0.3 + reset }
     lines.append("")
     if !statusMessage.isEmpty { lines.append("  \u{1B}[33m\(statusMessage)\(reset)") }
+    if bluetooth && !bluetoothStreamReady { lines.append("  \(dim)\(bluetoothConnectionHint)\(reset)") }
     if fullPanel { lines.append("  \(dim)\(statsText)\(reset)") }
     lines.append("  \(key("h"))\(dim) help   \(reset)\(key("q"))\(dim) quit   settings are saved automatically\(reset)")
     out("\u{1B}[H" + lines.joined(separator: "\u{1B}[K\r\n") + "\u{1B}[K\u{1B}[J")

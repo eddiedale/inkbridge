@@ -4,7 +4,7 @@
 //   make                                     builds ./inkbridge, offers to link it
 //   inkbridge link [--prefix /usr/local]     adds the inkbridge command
 //   inkbridge unlink                         removes it again
-//   ./inkbridge [--host 10.11.99.1] [--rotate 0|90|180|270]
+//   ./inkbridge [--host 10.11.99.1 | --bluetooth] [--rotate 0|90|180|270]
 //               [--area fill|keep|crop]
 //               [--device event2] [--touch-device event3] [--no-grab]
 //               [--full] [--plain] [--debug] [--stats] [--rate 0]
@@ -41,6 +41,7 @@ if runLinkCommand(Array(CommandLine.arguments.dropFirst())) { exit(0) }
 let usbHost = "10.11.99.1"
 var host = usbHost
 var hostGiven = false
+var bluetooth = false
 var device = "event2"
 var touchDevice = "event3"
 var plain = false
@@ -53,6 +54,7 @@ while let arg = args.next() {
     case "--host":
         host = args.next() ?? host
         hostGiven = true
+    case "--bluetooth": bluetooth = true
     case "--device": device = args.next() ?? device
     case "--touch-device": touchDevice = args.next() ?? touchDevice
     case "--rotate":
@@ -77,7 +79,19 @@ while let arg = args.next() {
         exit(1)
     }
 }
+if bluetooth {
+    guard !hostGiven else { print("Choose either --bluetooth or --host."); exit(1) }
+    guard FileManager.default.isExecutableFile(atPath: bluetoothHelper) else {
+        print("Build the Bluetooth helper with make inkbridge-ble.")
+        exit(1)
+    }
+}
 mapping = Mapping()
+
+var connectionName: String {
+    if bluetooth { return "Bluetooth" }
+    return host == usbHost ? "USB" : "Wi-Fi"
+}
 
 // MARK: Connect
 
@@ -91,7 +105,10 @@ func connectQuietly() -> Bool {
 // Try the last-used link first, then the other one (Wi-Fi only once its
 // address is known), so an unplugged cable or an absent network just works.
 var connected = false
-if !hostGiven && !settings.wifiHost.isEmpty {
+let bluetoothUsesConfiguredKey = bluetooth && configuredSSHIdentity.map {
+    FileManager.default.isReadableFile(atPath: $0)
+} == true
+if !bluetooth && !hostGiven && !settings.wifiHost.isEmpty {
     let order = settings.useWifi ? [settings.wifiHost, usbHost] : [usbHost, settings.wifiHost]
     for candidate in order {
         host = candidate
@@ -101,10 +118,16 @@ if !hostGiven && !settings.wifiHost.isEmpty {
     }
     if !connected { host = order[0] }
 }
-if !connected {
+// A configured Bluetooth identity can authenticate directly in the retry loop.
+// Keep the interactive preflight available for password-only setups.
+if !connected && !bluetoothUsesConfiguredKey {
     offerKeySetup()
-    print("Connecting to \(host)...")
+    print(bluetooth ? "Connecting over Bluetooth..." : "Connecting to \(host)...")
     guard connect() else {
+        if bluetooth {
+            print("Could not connect over Bluetooth. Check that the tablet is awake and the Bluetooth service is running.")
+            exit(1)
+        }
         print("""
         Could not connect to \(host). Check that the tablet is awake and connected
         (USB: \(usbHost)\(settings.wifiHost.isEmpty ? "" : ", Wi-Fi: \(settings.wifiHost)")). If ssh said \
@@ -115,12 +138,22 @@ if !connected {
     }
 }
 // Remember which link worked, so the next start tries it first.
-if !hostGiven && settings.useWifi != (host != usbHost) {
+if !bluetooth && !hostGiven && settings.useWifi != (host != usbHost) {
     settings.useWifi = host != usbHost
     settings.save()
 }
 
 // MARK: Stream
+
+private let bluetoothReadyMarker = "INKBRIDGE-BLE"
+private let bluetoothReadyBytes = Data((bluetoothReadyMarker + "\n").utf8)
+let bluetoothConnectionHint = "Wake the Paper Pro and check that its Bluetooth service is running."
+var bluetoothStreamReady = false
+var bluetoothHasStreamed = false
+private var bluetoothHandshakeDeadline: TimeInterval?
+private var bluetoothReadyAt: TimeInterval?
+private var bluetoothRetryAt = 0.0
+private var bluetoothRetryDelay = 1.0
 
 /// The command run on the tablet. -tt gives evtest a pty so it line-buffers.
 /// Evtests on our devices left by earlier runs or connections are stopped
@@ -136,8 +169,17 @@ if !hostGiven && settings.useWifi != (host != usbHost) {
 /// it, a dropped connection (cable pulled, Wi-Fi gone, terminal closed) could
 /// leave the tablet's pen and touch grabbed until the next run or a reboot.
 func remoteCommand() -> String {
+    if bluetooth {
+        let pen = shellQuoted("/dev/input/\(device)")
+        let touch = settings.touchOnTablet ? "-" : shellQuoted("/dev/input/\(touchDevice)")
+        let grabPen = settings.drawOnTablet ? "0" : "1"
+        // Confirm SSH authentication and lock acquisition even with the pen idle.
+        let launch = shellQuoted("test -x \"$1\" || exit 1; printf '%s\\n' \(bluetoothReadyMarker); exec \"$@\"")
+        return "exec flock -w 6 /run/inkbridge-ble/pen.lock sh -c \(launch) inkbridge "
+            + "/run/inkbridge-ble/inkbridge-pen \(pen) \(touch) \(grabPen)"
+    }
     var command = stopOurEvtests() + "; stty -echo 2>/dev/null; "
-    if host != usbHost { command += "iw dev wlan0 set power_save off 2>/dev/null; " }
+    if connectionName == "Wi-Fi" { command += "iw dev wlan0 set power_save off 2>/dev/null; " }
     if !settings.touchOnTablet { command += "evtest --grab /dev/input/\(touchDevice) >/dev/null & T=$!; " }
     command += "evtest \(settings.drawOnTablet ? "" : "--grab ")/dev/input/\(device) & E=$!; "
     return command + "while read -t 5 x; do :; done; kill -9 $E $T 2>/dev/null"
@@ -145,27 +187,43 @@ func remoteCommand() -> String {
 
 /// Restarts the stream so a changed grab setting takes effect.
 func restartStream() {
+    // The next reconnect will pick up changed grab settings.
+    guard streamFD >= 0 else { return }
     stopStream()
     if !startStream() {
+        if bluetooth {
+            scheduleBluetoothRetry()
+            return
+        }
         statusMessage = "Could not restart the stream"
         quitRequested = true
     }
 }
 
 var sshPID: pid_t = 0
-var streamFD: Int32 = -1       // evtest output
-var streamStdin: Int32 = -1    // kept open: with -tt, EOF on stdin ends the session
+var streamFD: Int32 = -1       // pen stream output
+var streamStdin: Int32 = -1    // heartbeat input for the tablet watchdog
 var pending = Data()
 
 func startStream() -> Bool {
     var output: [Int32] = [0, 0], input: [Int32] = [0, 0]
-    pipe(&output)
-    pipe(&input)
-    // Keep our ends of the pipes out of the ssh process, so EOF arrives on exit.
-    _ = fcntl(output[0], F_SETFD, FD_CLOEXEC)
-    _ = fcntl(input[1], F_SETFD, FD_CLOEXEC)
+    guard pipe(&output) == 0 else { return false }
+    guard pipe(&input) == 0 else {
+        close(output[0])
+        close(output[1])
+        return false
+    }
+    // SSH receives only the copies attached to stdin and stdout.
+    for fd in output + input { _ = fcntl(fd, F_SETFD, FD_CLOEXEC) }
+    if bluetooth {
+        // A disconnect can close SSH stdin before the next poll sees EOF.
+        _ = fcntl(input[1], F_SETNOSIGPIPE, 1)
+    }
+    // The Bluetooth stream is binary. Only the text stream uses a pty.
     // -q: no "Shared connection closed" message drawn over the panel.
-    let pid = spawnSSH(["-tt", "-q"] + sshOptions + ["root@\(host)", remoteCommand()], stdin: input[0], stdout: output[1])
+    let mode = bluetooth ? ["-T", "-q", "-o", "BatchMode=yes"] : ["-tt", "-q"]
+    let pid = spawnSSH(mode + sshOptions + ["root@\(host)", remoteCommand()],
+                       stdin: input[0], stdout: output[1], quiet: bluetooth)
     close(output[1])
     close(input[0])
     guard let pid else {
@@ -176,11 +234,23 @@ func startStream() -> Bool {
     sshPID = pid
     streamFD = output[0]
     streamStdin = input[1]
+    if bluetooth {
+        // Allow the SSH handshake and a previous pen grab's watchdog to finish.
+        bluetoothHandshakeDeadline = ProcessInfo.processInfo.systemUptime + 30
+    }
     return true
 }
 
 func stopStream() {
     releasePen()
+    if bluetooth {
+        close(streamStdin)
+        streamStdin = -1
+        bluetoothStreamReady = false
+        bluetoothHandshakeDeadline = nil
+        bluetoothReadyAt = nil
+        resetBluetoothReports()
+    }
     if sshPID > 0 {
         kill(sshPID, SIGTERM)
         _ = wait(sshPID)
@@ -188,7 +258,18 @@ func stopStream() {
     }
     close(streamFD)
     close(streamStdin)
+    streamFD = -1
+    streamStdin = -1
     pending.removeAll()
+}
+
+private func scheduleBluetoothRetry() {
+    if bluetoothStreamReady && !tui {
+        out("Bluetooth connection lost. Reconnecting with your SSH key.\n")
+    }
+    stopStream()
+    bluetoothRetryAt = ProcessInfo.processInfo.systemUptime + bluetoothRetryDelay
+    bluetoothRetryDelay = min(8, bluetoothRetryDelay * 2)
 }
 
 /// Runs a command on the tablet and returns its output.
@@ -214,6 +295,10 @@ func remoteOutput(_ command: String) -> String? {
 /// Switches between USB and Wi-Fi from the panel. Going to Wi-Fi from USB
 /// enables SSH over Wi-Fi on the tablet if needed and looks up its address.
 func switchConnection() {
+    if bluetooth {
+        statusMessage = "Restart in USB or Wi-Fi mode to switch links."
+        return
+    }
     let previous = host
     let target: String
     if host == usbHost {
@@ -257,11 +342,15 @@ for sig in [SIGINT, SIGTERM, SIGHUP] {
     }
 }
 
-guard startStream() else { exit(1) }
-
 tui = !plain && !debug && isatty(0) != 0 && isatty(1) != 0
+if !startStream() {
+    guard bluetooth else { exit(1) }
+    scheduleBluetoothRetry()
+}
 if tui {
     enterTUI()
+} else if bluetooth {
+    out("Waiting for Bluetooth. \(bluetoothConnectionHint) Ctrl-C to stop.\n")
 } else {
     print("Streaming \(device) from \(host), rotate \(settings.rotation), mapped to \(mapping.rect). Ctrl-C to stop.")
 }
@@ -273,26 +362,49 @@ var nextRender = 0.0
 var nextHeartbeat = 0.0
 loop: while !quitRequested {
     let now = Date().timeIntervalSince1970
-    var timeout = -1.0
+    var timeout = Double.infinity
+    if bluetooth {
+        let uptime = ProcessInfo.processInfo.systemUptime
+        if streamFD < 0 {
+            if uptime >= bluetoothRetryAt {
+                if !startStream() { scheduleBluetoothRetry() }
+                nextHeartbeat = now
+            }
+            if streamFD < 0 { timeout = min(timeout, bluetoothRetryAt - uptime) }
+        }
+        if let deadline = bluetoothHandshakeDeadline {
+            if uptime >= deadline {
+                scheduleBluetoothRetry()
+                continue
+            }
+            timeout = min(timeout, deadline - uptime)
+        }
+        if let readyAt = bluetoothReadyAt, uptime - readyAt >= 5 {
+            bluetoothRetryDelay = 1
+            bluetoothReadyAt = nil
+        }
+    }
     if tui {
         if now >= nextRender {
             render()
             nextRender = now + 1.0 / 15
         }
-        timeout = nextRender - now
+        timeout = min(timeout, nextRender - now)
     }
     // With --rate, a throttled motion must still go out if the pen stops moving.
-    if let due = motionDue() { timeout = timeout < 0 ? due : min(timeout, due) }
+    if let due = motionDue() { timeout = min(timeout, due) }
     // Heartbeat for the watchdog on the tablet (see remoteCommand).
-    if now >= nextHeartbeat {
-        _ = write(streamStdin, "\n", 1)
-        nextHeartbeat = now + 1
+    if streamStdin >= 0 {
+        if now >= nextHeartbeat {
+            _ = write(streamStdin, "\n", 1)
+            nextHeartbeat = now + 1
+        }
+        timeout = min(timeout, nextHeartbeat - now)
     }
-    timeout = timeout < 0 ? nextHeartbeat - now : min(timeout, nextHeartbeat - now)
 
     var pfds = [pollfd(fd: streamFD, events: Int16(POLLIN), revents: 0)]
     if tui { pfds.append(pollfd(fd: 0, events: Int16(POLLIN), revents: 0)) }
-    let ready = poll(&pfds, nfds_t(pfds.count), timeout < 0 ? -1 : Int32((timeout * 1000).rounded(.up)))
+    let ready = poll(&pfds, nfds_t(pfds.count), Int32((max(0, timeout) * 1000).rounded(.up)))
     if ready < 0 {
         if errno == EINTR { continue }
         break
@@ -320,8 +432,38 @@ loop: while !quitRequested {
     if pfds[0].revents != 0 {
         let n = read(streamFD, &buffer, buffer.count)
         if n < 0 && errno == EINTR { continue }
-        if n <= 0 { break }
+        if n <= 0 {
+            if !bluetooth || quitRequested { break }
+            scheduleBluetoothRetry()
+            continue
+        }
         pending.append(buffer, count: n)
+        if bluetooth {
+            if !bluetoothStreamReady {
+                guard pending.count >= bluetoothReadyBytes.count else { continue }
+                guard pending.starts(with: bluetoothReadyBytes) else {
+                    scheduleBluetoothRetry()
+                    continue
+                }
+                pending.removeFirst(bluetoothReadyBytes.count)
+                if !tui {
+                    let message = bluetoothHasStreamed ? "Bluetooth reconnected." : "Bluetooth connected. Streaming \(device)."
+                    out(message + "\n")
+                }
+                bluetoothStreamReady = true
+                bluetoothHasStreamed = true
+                bluetoothHandshakeDeadline = nil
+                bluetoothReadyAt = ProcessInfo.processInfo.systemUptime
+                resetBluetoothReports()
+            }
+            let completeBytes = pending.count / bluetoothReportSize * bluetoothReportSize
+            let end = pending.startIndex + completeBytes
+            for index in stride(from: pending.startIndex, to: end, by: bluetoothReportSize) {
+                parseBluetoothReport(pending[index..<(index + bluetoothReportSize)])
+            }
+            pending.removeFirst(completeBytes)
+            continue
+        }
         while let nl = pending.firstIndex(of: UInt8(ascii: "\n")) {
             let lineData = pending[pending.startIndex..<nl]
             pending.removeSubrange(pending.startIndex...nl)
@@ -335,5 +477,6 @@ loop: while !quitRequested {
 // Leave macOS in a clean state: no stuck button, pen out of proximity.
 stopStream()
 leaveTUI()
-if quitRequested { stopRemote() }
-print(quitRequested ? "Stopped." : "Connection to \(host) lost.")
+if quitRequested && !bluetooth { stopRemote() }
+let endpoint = bluetooth ? "Bluetooth" : host
+print(quitRequested ? "Stopped." : "Connection to \(endpoint) lost.")

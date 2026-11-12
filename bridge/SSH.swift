@@ -5,14 +5,32 @@ import Foundation
 let home = FileManager.default.homeDirectoryForCurrentUser.path
 let keyChoiceFile = configDir + "/ssh-key"     // private key path chosen at setup
 let skipKeyFile = configDir + "/no-ssh-key"    // user declined key setup
+let bluetoothHelper = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath()
+    .deletingLastPathComponent().appendingPathComponent("inkbridge-ble").path
+
+var configuredSSHIdentity: String? {
+    guard let key = try? String(contentsOfFile: keyChoiceFile, encoding: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty else { return nil }
+    return key
+}
+
+func shellQuoted(_ value: String) -> String {
+    "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+}
 
 // The shared control socket (one per host) means the password is asked once
 // per 10 minutes, and the stream reuses the connection made by connect().
 var sshOptions: [String] = {
-    var options = ["-o", "ConnectTimeout=5", "-o", "ServerAliveInterval=2", "-o", "ControlMaster=auto",
-                   "-o", "ControlPath=~/.ssh/inkbridge-%C", "-o", "ControlPersist=10m"]
-    if let key = try? String(contentsOfFile: keyChoiceFile, encoding: .utf8)
-        .trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty {
+    var options = ["-o", "ServerAliveInterval=2", "-o", "ControlMaster=auto", "-o", "ControlPersist=10m"]
+    if bluetooth {
+        // Keep the USB host key, but never reuse the USB control connection.
+        let helper = shellQuoted(bluetoothHelper.replacingOccurrences(of: "%", with: "%%"))
+        options += ["-o", "ConnectTimeout=20", "-o", "ControlPath=~/.ssh/inkbridge-ble-%C",
+                    "-o", "StrictHostKeyChecking=yes", "-o", "ProxyCommand=exec \(helper) connect"]
+    } else {
+        options += ["-o", "ConnectTimeout=5", "-o", "ControlPath=~/.ssh/inkbridge-%C"]
+    }
+    if let key = configuredSSHIdentity {
         options += ["-i", key]
     }
     return options
@@ -46,8 +64,11 @@ func spawnSSH(_ args: [String], stdin: Int32?, stdout: Int32?, quiet: Bool = fal
 
 func wait(_ pid: pid_t) -> Int32 {
     var status: Int32 = 0
-    waitpid(pid, &status, 0)
-    return (status >> 8) & 0xff
+    var result: pid_t
+    repeat { result = waitpid(pid, &status, 0) } while result < 0 && errno == EINTR
+    guard result == pid else { return 255 }
+    let signal = status & 0x7f
+    return signal == 0 ? (status >> 8) & 0xff : 128 + signal
 }
 
 /// Opens the shared connection, asking for the password if needed, so that
