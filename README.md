@@ -11,10 +11,11 @@ tablet events, so Photoshop and other apps see pressure, tilt, hover and the
 eraser end. USB and Wi-Fi use the tablet's built-in tools. The experimental
 Bluetooth connection uses a helper on the tablet.
 
-> Status: early, but usable for drawing. Developed and tested on a
-> reMarkable Pure (firmware 3.28) over USB with Photoshop on Apple Silicon.
-> Reported working on a reMarkable Paper Pro too. Other models may need
-> different device names; see below.
+> inkbridge is early and usable for drawing. USB was tested on a reMarkable
+> Pure (firmware 3.28) with Photoshop on Apple Silicon and reported working on
+> a Paper Pro. Experimental Bluetooth was tested on a Paper Pro (firmware
+> 3.29.1.0), including automatic service startup after a reboot and
+> reconnection after deep sleep with USB unplugged.
 
 ## What works
 
@@ -23,6 +24,8 @@ Bluetooth connection uses a helper on the tablet.
 - Pen and touch are grabbed while running, so the tablet UI does not react to
   drawing or finger gestures; released again on exit
 - Around 500 reports per second over USB, with under 1 ms added by the link
+- Experimental [Bluetooth](#bluetooth-experimental) on Paper Pro, with
+  automatic startup on the tablet and reconnection on the Mac
 
 Known limits:
 
@@ -36,8 +39,8 @@ Known limits:
 - A reMarkable in **developer mode**, which gives root SSH access.
   **Turning on developer mode factory resets the tablet.** Sync or export
   your notebooks first.
-- A USB cable, at least for the first connection. After that Wi-Fi works
-  too; see [Wi-Fi](#wi-fi).
+- A USB cable for initial setup. See [Wi-Fi](#wi-fi) or
+  [Bluetooth](#bluetooth-experimental) for wireless use.
 
 ## Setup
 
@@ -168,47 +171,66 @@ noticeably lowers latency. It comes back on when the tablet reboots.
 ### Bluetooth (experimental)
 
 Bluetooth Low Energy is available as an experimental connection on the
-reMarkable Paper Pro. The tablet needs developer mode and USB SSH access for
-the initial installation. The Mac build needs Clang and `ld.lld` for the
-tablet helpers.
+reMarkable Paper Pro. The tablet needs developer mode and SSH access over USB
+for the initial installation. The Mac build needs Clang and `ld.lld` for the
+tablet helpers. If `ld.lld` is outside your `PATH`, pass
+`LLD=/path/to/ld.lld` to `make`.
 
-With the tablet awake and connected by USB, install the startup service once:
+#### Install once over USB
+
+Wake the tablet and connect it over USB. From the inkbridge folder, build
+the Bluetooth helpers and install the tablet's startup service.
 
 ```sh
 make bluetooth
 sh tools/bluetooth.sh install
+```
+
+#### Connect and reconnect
+
+```sh
 ./inkbridge --bluetooth
 ```
 
-Allow Bluetooth access if macOS prompts. Inkbridge uses the SSH host key
-recorded over USB and the same tablet password or SSH key. Once the stream
-starts, you can unplug the cable. On later boots the service starts as the
-tablet becomes ready. After standby, wake the Paper Pro and allow a few seconds
-for it to advertise again. Inkbridge retries dropped streams automatically
-when SSH key authentication is available.
+Allow Bluetooth access if macOS prompts. inkbridge checks the SSH host key
+recorded over USB and uses the same tablet password or SSH key. Choose an
+[SSH key](#password-and-ssh-key) during setup to enable automatic reconnection.
+Once inkbridge shows `connected`, unplug the cable.
 
-Use `sh tools/bluetooth.sh status` over USB to check the tablet service. Use
-`sh tools/bluetooth.sh stop` to pause it until the next boot, or
-`sh tools/bluetooth.sh uninstall` to remove the startup service. For a session
-that lasts until reboot, use `sh tools/bluetooth.sh start` in place of `install`.
-Repeat `install` if a firmware update replaces the service registration.
+On later boots, the service starts as the tablet becomes ready. If the
+connection drops during sleep, wake the Paper Pro and leave inkbridge open.
+The tablet advertises again, and inkbridge retries with the configured SSH
+key.
 
-SSH encrypts and authenticates the connection over Bluetooth. Bluetooth
-coalesces position updates to limit traffic and sends contact, proximity,
-and eraser changes as they happen. Use `./inkbridge --bluetooth --full` to
-see the pen report rate and link lag.
+#### Manage the tablet service
+
+Connect the tablet over USB to run these commands.
+
+| Command | What it does |
+| --- | --- |
+| `sh tools/bluetooth.sh status` | Show whether startup is configured and the service is ready. |
+| `sh tools/bluetooth.sh start` | Start the installed service, or run a temporary service until reboot on an unconfigured tablet. |
+| `sh tools/bluetooth.sh stop` | Stop the current service. An installed service starts again on the next boot. |
+| `sh tools/bluetooth.sh uninstall` | Stop the service and remove its startup registration and tablet helpers. |
+
+After updating the source, rerun `make bluetooth`, then reinstall the
+tablet helpers over USB with `sh tools/bluetooth.sh install`. Use the same
+install command if a tablet firmware update replaces the startup
+registration. Use `./inkbridge --bluetooth --full` to see the report rate
+and link lag.
 
 ### Commands
 
 | command | what it does |
 |---|---|
 | `make` | build inkbridge, and the first time offer to add the inkbridge link |
-| `make clean` | delete the built program |
+| `make bluetooth` | build inkbridge and the Bluetooth helpers for the Mac and Paper Pro |
+| `make clean` | delete the built program and helpers |
 | `inkbridge` | start inkbridge from any folder, once linked |
 | `./inkbridge` | start inkbridge from the inkbridge folder, if you haven't linked it |
 | `inkbridge link` | add the inkbridge link, so `inkbridge` runs from any folder (`--prefix DIR` puts it in `DIR/bin`) |
 | `inkbridge unlink` | remove the inkbridge link |
-| `git pull` then `make` | update to the latest version |
+| `git pull` then `make` | update the main app |
 
 Before it is linked, use `./inkbridge link` from the inkbridge folder.
 
@@ -238,9 +260,9 @@ The device names differ between models. Find the pen and touch devices with:
 ssh root@10.11.99.1 cat /proc/bus/input/devices
 ```
 
-and pass them with `--device` and `--touch-device`. The axis ranges in
-`bridge/Pen.swift` are the Pure's; `tools/recon.sh` collects them for
-another model. Reports from other devices are welcome.
+and pass them with `--device` and `--touch-device`. USB and Wi-Fi use the
+Pure's axis ranges, and Bluetooth uses the Paper Pro's. `tools/recon.sh`
+collects axis ranges for other models. Reports from other devices are welcome.
 
 ### Linking by hand
 
@@ -269,11 +291,15 @@ know about.
 
 ## How it works
 
-inkbridge opens SSH to the tablet and runs its built-in `evtest --grab` on the
-pen device, which takes exclusive access and prints each input event. The Mac
-side parses those, groups them per report, maps tablet coordinates onto the
-display and posts `CGEvent` tablet proximity and pointer events with pressure
-and tilt. When the connection drops, the tablet releases the grab.
+Over USB and Wi-Fi, inkbridge runs the tablet's built-in `evtest` over SSH
+and groups its output by pen report. Over Bluetooth, a tablet helper sends
+compact binary reports through an encrypted SSH session over a BLE L2CAP
+channel. It coalesces position updates to limit traffic and sends contact,
+proximity, and eraser changes as they happen.
+
+On the Mac, inkbridge maps the reports to the display and posts `CGEvent`
+tablet proximity and pointer events with pressure and tilt. A watchdog on
+the tablet releases input grabs when the connection drops.
 
 Background and measurements are in `docs/`:
 
