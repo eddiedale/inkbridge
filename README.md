@@ -8,7 +8,8 @@ https://github.com/user-attachments/assets/3615dec1-4eb6-47ed-9bff-25e82229a9c6
 
 inkbridge runs on the Mac, reads the pen over SSH and posts native macOS
 tablet events, so Photoshop and other apps see pressure, tilt, hover and the
-eraser end. Nothing is installed on the tablet.
+eraser end. USB and Wi-Fi use the tablet's built-in tools. The experimental
+Bluetooth connection uses a helper on the tablet.
 
 > Status: early, but usable for drawing. Developed and tested on a
 > reMarkable Pure (firmware 3.28) over USB with Photoshop on Apple Silicon.
@@ -164,6 +165,39 @@ tablet, then:
 Over Wi-Fi, inkbridge turns off the tablet's Wi-Fi power saving, which
 noticeably lowers latency. It comes back on when the tablet reboots.
 
+### Bluetooth (experimental)
+
+Bluetooth Low Energy is available as an experimental connection on the
+reMarkable Paper Pro. The tablet needs developer mode and USB SSH access for
+the initial installation. The Mac build needs Clang and `ld.lld` for the
+tablet helpers.
+
+With the tablet awake and connected by USB, install the startup service once:
+
+```sh
+make bluetooth
+sh tools/bluetooth.sh install
+./inkbridge --bluetooth
+```
+
+Allow Bluetooth access if macOS prompts. Inkbridge uses the SSH host key
+recorded over USB and the same tablet password or SSH key. Once the stream
+starts, you can unplug the cable. On later boots the service starts as the
+tablet becomes ready. After standby, wake the Paper Pro and allow a few seconds
+for it to advertise again. Inkbridge retries dropped streams automatically
+when SSH key authentication is available.
+
+Use `sh tools/bluetooth.sh status` over USB to check the tablet service. Use
+`sh tools/bluetooth.sh stop` to pause it until the next boot, or
+`sh tools/bluetooth.sh uninstall` to remove the startup service. For a session
+that lasts until reboot, use `sh tools/bluetooth.sh start` in place of `install`.
+Repeat `install` if a firmware update replaces the service registration.
+
+SSH encrypts and authenticates the connection over Bluetooth. Bluetooth
+coalesces position updates to limit traffic and sends contact, proximity,
+and eraser changes as they happen. Use `./inkbridge --bluetooth --full` to
+see the pen report rate and link lag.
+
 ### Commands
 
 | command | what it does |
@@ -184,6 +218,7 @@ Before it is linked, use `./inkbridge link` from the inkbridge folder.
 | option | default | |
 |---|---|---|
 | `--host` | `10.11.99.1` | tablet address |
+| `--bluetooth` | off | use the experimental Paper Pro Bluetooth connection |
 | `--rotate 0\|90\|180\|270` | `90` | how far the tablet is turned clockwise from portrait |
 | `--area fill\|keep\|crop` | `crop` | how the tablet maps onto the display (see area map above) |
 | `--device` | `event2` | pen input device on the tablet |

@@ -3,9 +3,8 @@
 import CoreGraphics
 import Foundation
 
-// MARK: Pen geometry (from docs/recon-pure.md)
+// MARK: Pen geometry
 
-let maxX = 9620.0, maxY = 13000.0
 let pressureRange = 4096.0
 let maxTilt = 9000.0                  // hundredths of a degree
 
@@ -26,12 +25,14 @@ struct Mapping {
     let rect: CGRect        // display area the tablet region maps to
     let region: CGRect      // used part of the (rotated) tablet, in 0...1
     let rotation: Int
+    let maxX: Double
+    let maxY: Double
 
     init(display: CGRect = CGDisplayBounds(CGMainDisplayID())) {
         rotation = settings.rotation
-        // Work in physical units with the (rotated) tablet's height as 1. The
-        // raw pen range has the screen's shape (1404 x 1872), so its ratio is
-        // the physical aspect.
+        // Bluetooth targets the Paper Pro. USB and Wi-Fi use the original Pure calibration.
+        (maxX, maxY) = bluetooth ? (11180, 15340) : (9620, 13000)
+        // Work in physical units with the (rotated) tablet's height as 1.
         let tabletWidth = rotation % 180 == 0 ? maxX / maxY : maxY / maxX
         let shortSide = min(tabletWidth, 1)
         let pad = settings.padding * shortSide
@@ -268,6 +269,61 @@ func parse(line: String) {
     }
 }
 
+// MARK: Bluetooth reports
+
+let bluetoothReportSize = 16
+
+private struct BluetoothReportClock {
+    let startUptime: Double
+    var lastTimestamp: UInt32
+    var elapsedMilliseconds: Int64 = 0
+
+    mutating func lag(timestamp: UInt32, uptime: Double) -> Double {
+        // Unwrap the tablet's millisecond counter across UInt32 rollover.
+        elapsedMilliseconds += Int64(Int32(bitPattern: timestamp &- lastTimestamp))
+        lastTimestamp = timestamp
+        return (uptime - startUptime) * 1000 - Double(elapsedMilliseconds)
+    }
+}
+
+private var bluetoothClock: BluetoothReportClock?
+
+func resetBluetoothReports() {
+    bluetoothClock = nil
+    raw = PenState()
+    lastMotion = 0
+    motionPending = false
+    linkStats = LinkStats()
+    lags.removeAll(keepingCapacity: true)
+    minLag = .infinity
+    windowStart = Date().timeIntervalSince1970
+}
+
+/// Decodes one complete pen snapshot from the tablet's binary stream.
+func parseBluetoothReport(_ bytes: Data) {
+    guard bytes.count == bluetoothReportSize else { return }
+    let timestamp = bytes.withUnsafeBytes { (report: UnsafeRawBufferPointer) -> UInt32 in
+        let flags = report[12]
+        let inRange = flags & 0x01 != 0
+        let rubber = flags & 0x04 != 0
+        raw = PenState(
+            x: Int32(UInt16(littleEndian: report.loadUnaligned(fromByteOffset: 4, as: UInt16.self))),
+            y: Int32(UInt16(littleEndian: report.loadUnaligned(fromByteOffset: 6, as: UInt16.self))),
+            pressure: Int32(UInt16(littleEndian: report.loadUnaligned(fromByteOffset: 8, as: UInt16.self))),
+            tiltX: Int32(Int8(bitPattern: report[10])) * 100,
+            tiltY: Int32(Int8(bitPattern: report[11])) * 100,
+            pen: inRange && !rubber, rubber: inRange && rubber, touch: flags & 0x02 != 0)
+        return UInt32(littleEndian: report.loadUnaligned(as: UInt32.self))
+    }
+
+    let uptime = ProcessInfo.processInfo.systemUptime
+    var clock = bluetoothClock ?? BluetoothReportClock(startUptime: uptime, lastTimestamp: timestamp)
+    let lag = clock.lag(timestamp: timestamp, uptime: uptime)
+    bluetoothClock = clock
+    record(lag: lag, now: Date().timeIntervalSince1970, showRawLag: false)
+    flush()
+}
+
 // MARK: Link stats
 
 // Lag is Mac receive time minus the tablet's event timestamp. The clocks are not
@@ -288,7 +344,10 @@ func record(eventTime line: String) {
     guard let r = line.range(of: "time "),
           let t = Double(line[r.upperBound...].prefix { $0 != "," }) else { return }
     let now = Date().timeIntervalSince1970
-    let lag = (now - t) * 1000
+    record(lag: (now - t) * 1000, now: now)
+}
+
+private func record(lag: Double, now: Double, showRawLag: Bool = true) {
     lags.append(lag)
     minLag = min(minLag, lag)
     guard now - windowStart >= 1 else { return }
@@ -297,8 +356,9 @@ func record(eventTime line: String) {
     linkStats = LinkStats(reports: lags.count, p50: pct(0.5), p95: pct(0.95),
                           max: sorted.last! - minLag, rawP50: sorted[sorted.count / 2], updated: now)
     if stats && !tui {
-        print(String(format: "%4d reports/s  lag above best: p50 %5.1f  p95 %5.1f  max %5.1f ms  (raw p50 %.1f ms)",
-                     linkStats.reports, linkStats.p50, linkStats.p95, linkStats.max, linkStats.rawP50))
+        let rawLag = showRawLag ? String(format: "  (raw p50 %.1f ms)", linkStats.rawP50) : ""
+        print(String(format: "%4d reports/s  lag above best: p50 %5.1f  p95 %5.1f  max %5.1f ms",
+                     linkStats.reports, linkStats.p50, linkStats.p95, linkStats.max) + rawLag)
     }
     lags.removeAll(keepingCapacity: true)
     windowStart = now
